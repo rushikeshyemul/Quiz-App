@@ -15,6 +15,7 @@ export const QuizInterface: React.FC = () => {
   const [answers, setAnswers] = useState<number[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const config: QuizConfig = location.state?.config;
@@ -50,7 +51,7 @@ export const QuizInterface: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to load quiz:', error);
-        navigate('/dashboard');
+        setLoadError(error instanceof Error ? error.message : 'Failed to load quiz');
       } finally {
         setLoading(false);
       }
@@ -159,8 +160,16 @@ export const QuizInterface: React.FC = () => {
     );
   }
 
-  if (!quiz) {
-    return null;
+  if (loadError || !quiz) {
+    return (
+      <div className="max-w-xl mx-auto text-center">
+        <Card className="p-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">Quiz could not be created</h1>
+          <p className="text-gray-600 mb-6">{loadError || 'No quiz was returned.'}</p>
+          <Button onClick={() => navigate('/dashboard')}>Back to dashboard</Button>
+        </Card>
+      </div>
+    );
   }
 
   const currentQ = quiz.questions[currentQuestion];

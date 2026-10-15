@@ -78,9 +78,12 @@ A comprehensive quiz application built with React, TypeScript, and Node.js that 
    ```bash
    node setup-env.js
    ```
-   This creates a `.env` file for the frontend. The app works with mock data by default, but you can optionally:
-   - Get a free API key from [Together AI](https://together.ai)
-   - Replace `your_together_api_key_here` with your actual API key for AI-powered quiz generation
+   Quiz generation uses Gemini on the backend. Add your key to `backend/.env`:
+   ```
+   GEMINI_API_KEY=your_key_here
+   GEMINI_MODEL=gemini-3.8-flash
+   ```
+   Get a key from [Google AI Studio](https://aistudio.google.com/apikey), then restart the backend. Until the key is set, quizzes use the built-in sample questions.
 
 ### Vite Proxy Configuration
 

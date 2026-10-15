@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import Quiz from '../models/Quiz.js';
 import QuizAttempt from '../models/QuizAttempt.js';
+import { generateQuizWithGemini, isGeminiConfigured } from '../services/geminiQuiz.js';
 
 const router = express.Router();
 
@@ -17,6 +18,39 @@ function auth(req, res, next) {
     res.status(401).json({ message: 'Invalid token' });
   }
 }
+
+const ALLOWED_COUNTS = new Set([5, 10, 15, 20]);
+const ALLOWED_DIFFICULTIES = new Set(['easy', 'medium', 'hard']);
+
+router.post('/generate', auth, async (req, res) => {
+  try {
+    const topic = typeof req.body.topic === 'string' ? req.body.topic.trim() : '';
+    const questionCount = Number(req.body.questionCount);
+    const difficulty = req.body.difficulty;
+
+    if (!topic || topic.length > 200) {
+      return res.status(400).json({ message: 'A topic is required' });
+    }
+    if (!ALLOWED_COUNTS.has(questionCount)) {
+      return res.status(400).json({ message: 'Choose 5, 10, 15, or 20 questions' });
+    }
+    if (!ALLOWED_DIFFICULTIES.has(difficulty)) {
+      return res.status(400).json({ message: 'Difficulty must be easy, medium, or hard' });
+    }
+    if (!isGeminiConfigured()) {
+      return res.status(503).json({
+        code: 'GEMINI_NOT_CONFIGURED',
+        message: 'Add GEMINI_API_KEY to backend/.env and restart the API',
+      });
+    }
+
+    const questions = await generateQuizWithGemini({ topic, questionCount, difficulty });
+    res.json({ questions });
+  } catch (err) {
+    console.error('Gemini quiz generation failed:', err.message);
+    res.status(502).json({ message: 'Gemini could not generate this quiz. Check the API key and model, then try again.' });
+  }
+});
 
 // Save a quiz
 router.post('/', auth, async (req, res) => {

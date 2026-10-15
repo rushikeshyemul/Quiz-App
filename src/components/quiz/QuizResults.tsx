@@ -14,6 +14,8 @@ import {
   Home
 } from 'lucide-react';
 
+const savedAttemptKeys = new Set<string>();
+
 export const QuizResults: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -38,11 +40,20 @@ export const QuizResults: React.FC = () => {
   };
 
   useEffect(() => {
+    const attemptKey = [
+      quiz.id,
+      score,
+      timeTaken,
+      difficulty,
+      answers.join(","),
+    ].join("|");
+    if (savedAttemptKeys.has(attemptKey)) return;
+    savedAttemptKeys.add(attemptKey);
+
     const saveQuizAttempt = async () => {
       try {
         setSaving(true);
-        console.log('Saving quiz attempt with quizId:', quiz.id);
-        const result = await quizService.saveQuizAttempt({
+        await quizService.saveQuizAttempt({
           quizId: quiz.id,
           topic: quiz.topic,
           answers,
@@ -51,16 +62,15 @@ export const QuizResults: React.FC = () => {
           timeTaken,
           difficulty,
         });
-        console.log('Quiz attempt saved successfully:', result);
       } catch (error) {
+        savedAttemptKeys.delete(attemptKey);
         console.error('Failed to save quiz attempt:', error);
-        // Don't show error to user as this is background operation
       } finally {
         setSaving(false);
       }
     };
 
-    saveQuizAttempt();
+    void saveQuizAttempt();
   }, [quiz.id, quiz.topic, answers, score, totalQuestions, timeTaken, difficulty]);
 
   const percentage = Math.round((score / totalQuestions) * 100);

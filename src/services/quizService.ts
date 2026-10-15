@@ -1,123 +1,45 @@
 import { Quiz, Question, QuizConfig, QuizAttempt, UserStats } from "../types";
 import { API_URL } from "../config";
 
-const TOGETHER_API_KEY = import.meta.env.VITE_TOGETHER_API_KEY;
-const TOGETHER_API_URL = "https://api.together.xyz/v1/chat/completions";
-
-function hasTogetherApiKey(): boolean {
-  return Boolean(
-    TOGETHER_API_KEY && TOGETHER_API_KEY !== "your_together_api_key_here"
-  );
-}
-
 export const quizService = {
   async generateQuiz(config: QuizConfig): Promise<Quiz> {
-    if (!hasTogetherApiKey()) {
-      return this.generateMockQuiz(config);
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      throw new Error("User not authenticated");
     }
 
-    try {
-      const prompt = this.createQuizPrompt(config);
-
-      const response = await fetch(TOGETHER_API_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${TOGETHER_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an expert quiz generator. Generate quiz questions in valid JSON format only. Do not include any explanatory text outside the JSON.",
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-          temperature: 0.7,
-          max_tokens: 2000,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Together API request failed (${response.status})`);
-      }
-
-      const payload = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string | null } }>;
-      };
-      const content = payload.choices?.[0]?.message?.content;
-      if (!content) {
-        throw new Error("No content returned from Together API");
-      }
-      // Parse the JSON response
-      const quizData = JSON.parse(content) as {
-        questions: Array<{
-          question: string;
-          options: string[];
-          correctAnswer: number;
-          explanation?: string;
-        }>;
-      };
-      const questions: Question[] = quizData.questions.map(
-        (q, index: number) => ({
-          id: `q${index + 1}`,
-          question: q.question,
-          options: q.options,
-          correctAnswer: q.correctAnswer,
-          explanation: q.explanation || "",
-        })
-      );
-
-      return {
-        id: Date.now().toString(),
+    const response = await fetch(`${API_URL}/quiz/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
         topic: config.topic,
-        questions,
-        timeLimit: config.timeLimit,
-        createdAt: new Date().toISOString(),
-      };
-    } catch (error) {
-      console.error("Error generating quiz with Together API:", error);
-      // Fallback to mock data if API fails
-      return this.generateMockQuiz(config);
-    }
-  },
+        questionCount: config.questionCount,
+        difficulty: config.difficulty,
+      }),
+    });
 
-  createQuizPrompt(config: QuizConfig): string {
-    const difficultyInstructions = {
-      easy: "simple questions for beginners",
-      medium: "moderately tricky questions that need some understanding",
-      hard: "concept based questions for confident learners",
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as {
+        code?: string;
+        message?: string;
+      } | null;
+      if (response.status === 503 && data?.code === "GEMINI_NOT_CONFIGURED") {
+        return this.generateMockQuiz(config);
+      }
+      throw new Error(data?.message || "Gemini could not generate this quiz");
+    }
+
+    const quizData = (await response.json()) as { questions: Question[] };
+    return {
+      id: Date.now().toString(),
+      topic: config.topic,
+      questions: quizData.questions,
+      timeLimit: config.timeLimit,
+      createdAt: new Date().toISOString(),
     };
-
-    return `Generate ${config.questionCount} multiple choice questions about ${
-      config.topic
-    } at ${difficultyInstructions[config.difficulty]} difficulty.
-
-Requirements:
-- Each question should have exactly 4 options (A, B, C, D)
-- Only one correct answer per question
-- Include brief explanations for correct answers
-- Questions should be relevant to ${config.topic}
-- Avoid overly trivial or extremely obscure questions
-
-Return the response in this exact JSON format:
-{
-  "questions": [
-    {
-      "question": "Question text here?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctAnswer": 0,
-      "explanation": "Brief explanation of why this is correct"
-    }
-  ]
-}
-
-Note: correctAnswer should be the index (0-3) of the correct option in the options array.`;
   },
 
   async generateMockQuiz(config: QuizConfig): Promise<Quiz> {
