@@ -66,10 +66,10 @@ export const TestRecords: React.FC = () => {
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'easy': return 'text-green-600 bg-green-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'hard': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'easy': return 'bg-green-100 text-green-600 dark:bg-green-500/15 dark:text-green-400';
+      case 'medium': return 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/15 dark:text-yellow-300';
+      case 'hard': return 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400';
+      default: return 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-zinc-300';
     }
   };
 
@@ -98,7 +98,7 @@ export const TestRecords: React.FC = () => {
   if (!stats || stats.totalAttempts === 0) {
     return (
       <Card className="p-8 text-center">
-        <div className="text-gray-600 mb-4">
+        <div className="mb-4 text-gray-600 dark:text-zinc-400">
           <Trophy className="w-12 h-12 mx-auto mb-2" />
           <p className="text-lg font-semibold">No Test Records Yet</p>
           <p className="text-sm">Complete your first quiz to see your statistics here!</p>
@@ -113,26 +113,26 @@ export const TestRecords: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-6 text-center">
           <Trophy className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-gray-800">{stats.totalAttempts}</p>
-          <p className="text-sm text-gray-600">Total Attempts</p>
+          <p className="text-2xl font-bold text-gray-800 dark:text-zinc-50">{stats.totalAttempts}</p>
+          <p className="text-sm text-gray-600 dark:text-zinc-400">Total Attempts</p>
         </Card>
 
         <Card className="p-6 text-center">
           <Target className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-gray-800">{stats.averageScore}%</p>
-          <p className="text-sm text-gray-600">Average Score</p>
+          <p className="text-2xl font-bold text-gray-800 dark:text-zinc-50">{stats.averageScore}%</p>
+          <p className="text-sm text-gray-600 dark:text-zinc-400">Average Score</p>
         </Card>
 
         <Card className="p-6 text-center">
           <BookOpen className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-gray-800">{stats.totalQuestions}</p>
-          <p className="text-sm text-gray-600">Questions Answered</p>
+          <p className="text-2xl font-bold text-gray-800 dark:text-zinc-50">{stats.totalQuestions}</p>
+          <p className="text-sm text-gray-600 dark:text-zinc-400">Questions Answered</p>
         </Card>
 
         <Card className="p-6 text-center">
           <Clock className="w-8 h-8 text-green-600 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-gray-800">{formatTime(stats.totalTime)}</p>
-          <p className="text-sm text-gray-600">Total Time</p>
+          <p className="text-2xl font-bold text-gray-800 dark:text-zinc-50">{formatTime(stats.totalTime)}</p>
+          <p className="text-sm text-gray-600 dark:text-zinc-400">Total Time</p>
         </Card>
       </div>
 
@@ -141,13 +141,13 @@ export const TestRecords: React.FC = () => {
         <Card className="p-6">
           <div className="flex items-center mb-4">
             <Zap className="w-6 h-6 text-blue-600 mr-2" />
-            <h3 className="text-xl font-bold">Topics Covered</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-50">Topics Covered</h3>
           </div>
           <div className="flex flex-wrap gap-2">
             {stats.topics.map((topic, index) => (
               <span
                 key={index}
-                className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800 dark:bg-indigo-500/15 dark:text-indigo-300"
               >
                 {topic}
               </span>
@@ -161,9 +161,9 @@ export const TestRecords: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
             <TrendingUp className="w-6 h-6 text-green-600 mr-2" />
-            <h3 className="text-xl font-bold">Recent Test Records</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-50">Recent Test Records</h3>
           </div>
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-zinc-400">
             Showing last {attempts.length} attempts
           </span>
         </div>
@@ -174,7 +174,7 @@ export const TestRecords: React.FC = () => {
             return (
               <div
                 key={attempt.id}
-                className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                className="rounded-lg border border-slate-200 p-4 transition-colors hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-3">
@@ -182,7 +182,7 @@ export const TestRecords: React.FC = () => {
                       <span className={`text-lg font-bold ${getScoreColor(percentage)}`}>
                         {percentage}%
                       </span>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600 dark:text-zinc-400">
                         ({attempt.score}/{attempt.totalQuestions})
                       </span>
                     </div>
@@ -193,18 +193,18 @@ export const TestRecords: React.FC = () => {
                     </span>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-600">{formatDate(attempt.completedAt)}</p>
-                    <p className="text-xs text-gray-500">{formatTime(attempt.timeTaken)}</p>
+                    <p className="text-sm text-gray-600 dark:text-zinc-400">{formatDate(attempt.completedAt)}</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-500">{formatTime(attempt.timeTaken)}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <BookOpen className="w-4 h-4 text-gray-500" />
-                    <span className="font-medium text-gray-800">{attempt.topic}</span>
+                    <BookOpen className="h-4 w-4 text-gray-500 dark:text-zinc-500" />
+                    <span className="font-medium text-gray-800 dark:text-zinc-100">{attempt.topic}</span>
                   </div>
                   
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-zinc-400">
                     <div className="flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
                       {formatTime(attempt.timeTaken)}
@@ -221,7 +221,7 @@ export const TestRecords: React.FC = () => {
         </div>
 
         {attempts.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="py-8 text-center text-gray-500 dark:text-zinc-400">
             <Eye className="w-12 h-12 mx-auto mb-2" />
             <p>No recent attempts to display</p>
           </div>
@@ -232,20 +232,20 @@ export const TestRecords: React.FC = () => {
       <Card className="p-6">
         <div className="flex items-center mb-4">
           <Award className="w-6 h-6 text-yellow-600 mr-2" />
-          <h3 className="text-xl font-bold">Performance Insights</h3>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-50">Performance Insights</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Best Score</span>
-              <span className="font-semibold">
+              <span className="text-sm text-gray-600 dark:text-zinc-400">Best Score</span>
+              <span className="font-semibold text-slate-900 dark:text-zinc-50">
                 {Math.max(...attempts.map(a => (a.score / a.totalQuestions) * 100)).toFixed(1)}%
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Average Time per Question</span>
-              <span className="font-semibold">
+              <span className="text-sm text-gray-600 dark:text-zinc-400">Average Time per Question</span>
+              <span className="font-semibold text-slate-900 dark:text-zinc-50">
                 {stats.totalQuestions > 0 
                   ? formatTime(Math.round(stats.totalTime / stats.totalQuestions))
                   : '0:00'
@@ -256,14 +256,14 @@ export const TestRecords: React.FC = () => {
           
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Most Attempted Topic</span>
-              <span className="font-semibold">
+              <span className="text-sm text-gray-600 dark:text-zinc-400">Most Attempted Topic</span>
+              <span className="font-semibold text-slate-900 dark:text-zinc-50">
                 {stats.topics.length > 0 ? stats.topics[0] : 'N/A'}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Total Study Time</span>
-              <span className="font-semibold">{formatTime(stats.totalTime)}</span>
+              <span className="text-sm text-gray-600 dark:text-zinc-400">Total Study Time</span>
+              <span className="font-semibold text-slate-900 dark:text-zinc-50">{formatTime(stats.totalTime)}</span>
             </div>
           </div>
         </div>

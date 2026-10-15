@@ -1,6 +1,34 @@
 import { Quiz, Question, QuizConfig, QuizAttempt, UserStats } from "../types";
 import { API_URL } from "../config";
 
+const generatedQuizLoads = new Map<string, Promise<Quiz>>();
+const attemptSaves = new Map<string, Promise<QuizAttempt>>();
+
+function generatedQuizKey(config: QuizConfig) {
+  return [
+    config.topic,
+    config.questionCount,
+    config.timeLimit,
+    config.difficulty,
+  ].join("|");
+}
+
+function attemptSaveKey(attempt: {
+  quizId: string;
+  score: number;
+  timeTaken: number;
+  difficulty: string;
+  answers: number[];
+}) {
+  return [
+    attempt.quizId,
+    attempt.score,
+    attempt.timeTaken,
+    attempt.difficulty,
+    attempt.answers.join(","),
+  ].join("|");
+}
+
 export const quizService = {
   async generateQuiz(config: QuizConfig): Promise<Quiz> {
     const token = localStorage.getItem("auth_token");
@@ -249,6 +277,30 @@ export const quizService = {
     ];
   },
 
+  async createGeneratedQuiz(config: QuizConfig): Promise<Quiz> {
+    const key = generatedQuizKey(config);
+    const current = generatedQuizLoads.get(key);
+    if (current) return current;
+
+    const load = (async () => {
+      const generated = await this.generateQuiz(config);
+      return this.saveQuizToBackend({
+        topic: generated.topic,
+        questions: generated.questions,
+        timeLimit: generated.timeLimit,
+      });
+    })().finally(() => {
+      queueMicrotask(() => {
+        if (generatedQuizLoads.get(key) === load) {
+          generatedQuizLoads.delete(key);
+        }
+      });
+    });
+
+    generatedQuizLoads.set(key, load);
+    return load;
+  },
+
   // Save quiz to backend
   async saveQuizToBackend(quizData: {
     topic: string;
@@ -294,26 +346,38 @@ export const quizService = {
     timeTaken: number;
     difficulty: "easy" | "medium" | "hard";
   }): Promise<QuizAttempt> {
+    const key = attemptSaveKey(attemptData);
+    const current = attemptSaves.get(key);
+    if (current) return current;
+
     const token = localStorage.getItem("auth_token");
     if (!token) {
       throw new Error("User not authenticated");
     }
 
-    const response = await fetch(`${API_URL}/quiz/attempt`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(attemptData),
+    const save = (async () => {
+      const response = await fetch(`${API_URL}/quiz/attempt`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(attemptData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to save quiz attempt");
+      }
+
+      return response.json() as Promise<QuizAttempt>;
+    })().catch((error: unknown) => {
+      attemptSaves.delete(key);
+      throw error;
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to save quiz attempt");
-    }
-
-    return response.json();
+    attemptSaves.set(key, save);
+    return save;
   },
 
   async getUserQuizAttempts(): Promise<QuizAttempt[]> {

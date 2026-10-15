@@ -4,7 +4,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { QuizConfig } from '../../types';
-import { Settings, Play, Clock, Hash, Target, BookOpen } from 'lucide-react';
+import { Play, Clock, Hash, Target, BookOpen, ArrowLeft } from 'lucide-react';
 
 export const QuizSetup: React.FC = () => {
   const location = useLocation();
@@ -33,22 +33,30 @@ export const QuizSetup: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="text-center mb-8">
-        <Settings className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-        <h1 className="text-3xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Quiz Setup
+    <div className="mx-auto max-w-xl">
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard')}
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Dashboard
+        </button>
+        <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Setup</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">
+          Configure this quiz
         </h1>
-        <p className="text-gray-600 mt-2">
-          Configure your quiz settings
+        <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">
+          These settings are sent to Gemini when the questions are written.
         </p>
       </div>
 
-      <Card className="p-8">
+      <Card className="p-6 sm:p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <BookOpen className="w-4 h-4 inline mr-1" />
+            <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-zinc-300">
+              <BookOpen className="h-4 w-4" />
               Topic
             </label>
             <Input
@@ -56,20 +64,20 @@ export const QuizSetup: React.FC = () => {
               value={config.topic}
               onChange={(e) => handleConfigChange('topic', e.target.value)}
               required
-              className="bg-gray-50"
+              className="bg-slate-50 dark:bg-zinc-950"
               disabled
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Hash className="w-4 h-4 inline mr-1" />
-              Number of Questions
+            <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-zinc-300">
+              <Hash className="h-4 w-4" />
+              Number of questions
             </label>
             <select
               value={config.questionCount}
               onChange={(e) => handleConfigChange('questionCount', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100"
             >
               <option value={5}>5 Questions</option>
               <option value={10}>10 Questions</option>
@@ -79,14 +87,14 @@ export const QuizSetup: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Clock className="w-4 h-4 inline mr-1" />
-              Time Limit (minutes)
+            <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-zinc-300">
+              <Clock className="h-4 w-4" />
+              Time limit
             </label>
             <select
               value={config.timeLimit}
               onChange={(e) => handleConfigChange('timeLimit', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100"
             >
               <option value={5}>5 minutes</option>
               <option value={10}>10 minutes</option>
@@ -97,9 +105,9 @@ export const QuizSetup: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Target className="w-4 h-4 inline mr-1" />
-              Difficulty Level
+            <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-zinc-300">
+              <Target className="h-4 w-4" />
+              Difficulty
             </label>
             <div className="grid grid-cols-3 gap-2">
               {(['easy', 'medium', 'hard'] as const).map((level) => (
@@ -107,10 +115,10 @@ export const QuizSetup: React.FC = () => {
                   key={level}
                   type="button"
                   onClick={() => handleConfigChange('difficulty', level)}
-                  className={`px-4 py-2 rounded-lg border transition-colors ${
+                  className={`h-11 rounded-xl border text-sm font-medium ${
                     config.difficulty === level
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-white/5'
                   }`}
                 >
                   {level.charAt(0).toUpperCase() + level.slice(1)}
@@ -119,14 +127,11 @@ export const QuizSetup: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-blue-900 mb-2">Quiz Summary</h3>
-            <div className="text-sm text-blue-800 space-y-1">
-              <p>• Topic: {config.topic}</p>
-              <p>• Questions: {config.questionCount}</p>
-              <p>• Time: {config.timeLimit} minutes</p>
-              <p>• Difficulty: {config.difficulty}</p>
-            </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:bg-zinc-950 dark:text-zinc-400">
+            <p className="font-medium text-slate-900 dark:text-zinc-50">{config.topic}</p>
+            <p className="mt-1">
+              {config.questionCount} questions · {config.timeLimit} minutes · {config.difficulty}
+            </p>
           </div>
 
           <div className="flex space-x-4">
@@ -136,15 +141,16 @@ export const QuizSetup: React.FC = () => {
               onClick={() => navigate('/dashboard')}
               className="flex-1"
             >
-              Back to Dashboard
+              <ArrowLeft className="h-4 w-4" />
+              Dashboard
             </Button>
             <Button
               type="submit"
               className="flex-1"
               size="lg"
             >
-              <Play className="w-5 h-5 mr-2" />
-              Start Quiz
+              <Play className="h-4 w-4" />
+              Start quiz
             </Button>
           </div>
         </form>

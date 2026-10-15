@@ -4,9 +4,9 @@ import { Header } from './Header';
 
 export const Layout: React.FC = () => {
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen">
       <Header />
-      <main className="container mx-auto px-4 py-8">
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <Outlet />
       </main>
     </div>

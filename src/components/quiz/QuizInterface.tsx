@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Quiz, QuizConfig } from '../../types';
 import { quizService } from '../../services/quizService';
-import { Clock } from 'lucide-react';
+import { Clock, ArrowLeft } from 'lucide-react';
 
 export const QuizInterface: React.FC = () => {
   const location = useLocation();
@@ -17,6 +17,7 @@ export const QuizInterface: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const hasSubmitted = useRef(false);
 
   const config: QuizConfig = location.state?.config;
   const existingQuiz: Quiz | null = location.state?.quiz || null;
@@ -27,42 +28,35 @@ export const QuizInterface: React.FC = () => {
       return;
     }
 
+    let active = true;
+
     const loadQuiz = async () => {
       try {
-        if (existingQuiz) {
-          // Quiz already provided (e.g., from PDF upload)
-          setQuiz(existingQuiz);
-          setTimeLeft(config.timeLimit * 60);
-          setAnswers(new Array(existingQuiz.questions.length).fill(-1));
-        } else {
-          // Generate new quiz
-          const quizData = await quizService.generateQuiz(config);
-          
-          // Save quiz to backend to get proper MongoDB _id
-          const savedQuiz = await quizService.saveQuizToBackend({
-            topic: quizData.topic,
-            questions: quizData.questions,
-            timeLimit: quizData.timeLimit,
-          });
-          
-          setQuiz(savedQuiz);
-          setTimeLeft(config.timeLimit * 60);
-          setAnswers(new Array(savedQuiz.questions.length).fill(-1));
-        }
+        const loadedQuiz = existingQuiz
+          ? existingQuiz
+          : await quizService.createGeneratedQuiz(config);
+        if (!active) return;
+        setQuiz(loadedQuiz);
+        setTimeLeft(config.timeLimit * 60);
+        setAnswers(new Array(loadedQuiz.questions.length).fill(-1));
       } catch (error) {
+        if (!active) return;
         console.error('Failed to load quiz:', error);
         setLoadError(error instanceof Error ? error.message : 'Failed to load quiz');
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    loadQuiz();
+    void loadQuiz();
+    return () => {
+      active = false;
+    };
   }, [config, existingQuiz, navigate]);
 
-  const handleAutoSubmit = useCallback(() => {
-    if (!quiz || submitting || !config) return;
-
+  const finishQuiz = useCallback((autoSubmitted: boolean) => {
+    if (!quiz || !config || hasSubmitted.current) return;
+    hasSubmitted.current = true;
     setSubmitting(true);
 
     const score = answers.reduce((acc, answer, index) => {
@@ -78,11 +72,11 @@ export const QuizInterface: React.FC = () => {
         score,
         totalQuestions: quiz.questions.length,
         timeTaken,
-        autoSubmitted: true,
+        autoSubmitted,
         difficulty: config.difficulty,
       },
     });
-  }, [answers, config, navigate, quiz, submitting, timeLeft]);
+  }, [answers, config, navigate, quiz, timeLeft]);
 
   useEffect(() => {
     if (!quiz || submitting) return;
@@ -90,14 +84,14 @@ export const QuizInterface: React.FC = () => {
     const delay = timeLeft <= 0 ? 0 : 1000;
     const timer = setTimeout(() => {
       if (timeLeft <= 0) {
-        handleAutoSubmit();
+        finishQuiz(true);
         return;
       }
       setTimeLeft(timeLeft - 1);
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [handleAutoSubmit, quiz, submitting, timeLeft]);
+  }, [finishQuiz, quiz, submitting, timeLeft]);
 
   const handleAnswerSelect = (answerIndex: number) => {
     const newAnswers = [...answers];
@@ -118,27 +112,7 @@ export const QuizInterface: React.FC = () => {
   };
 
   const handleManualSubmit = () => {
-    if (!quiz) return;
-    
-    setSubmitting(true);
-    
-    const score = answers.reduce((acc, answer, index) => {
-      return acc + (answer === quiz.questions[index].correctAnswer ? 1 : 0);
-    }, 0);
-
-    const timeTaken = (config.timeLimit * 60) - timeLeft;
-
-    navigate('/quiz-results', {
-      state: {
-        quiz,
-        answers,
-        score,
-        totalQuestions: quiz.questions.length,
-        timeTaken,
-        autoSubmitted: false,
-        difficulty: config.difficulty,
-      },
-    });
+    finishQuiz(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -154,7 +128,11 @@ export const QuizInterface: React.FC = () => {
       <div className="flex items-center justify-center min-h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading quiz...</p>
+          <p className="text-gray-600 dark:text-zinc-400">Loading quiz...</p>
+          <Button variant="ghost" className="mt-4" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to dashboard
+          </Button>
         </div>
       </div>
     );
@@ -164,8 +142,8 @@ export const QuizInterface: React.FC = () => {
     return (
       <div className="max-w-xl mx-auto text-center">
         <Card className="p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">Quiz could not be created</h1>
-          <p className="text-gray-600 mb-6">{loadError || 'No quiz was returned.'}</p>
+          <h1 className="mb-3 text-2xl font-bold text-gray-900 dark:text-zinc-50">Quiz could not be created</h1>
+          <p className="mb-6 text-gray-600 dark:text-zinc-400">{loadError || 'No quiz was returned.'}</p>
           <Button onClick={() => navigate('/dashboard')}>Back to dashboard</Button>
         </Card>
       </div>
@@ -176,65 +154,69 @@ export const QuizInterface: React.FC = () => {
   const selectedAnswer = answers[currentQuestion];
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-4">
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-5">
+        <div className="mb-3 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{quiz.topic}</h1>
-            <p className="text-gray-600">
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Leave this quiz? This attempt will not be saved.')) {
+                  navigate('/dashboard');
+                }
+              }}
+              className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Exit to dashboard
+            </button>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{quiz.topic}</h1>
+            <p className="text-sm text-slate-500 dark:text-zinc-400">
               Question {currentQuestion + 1} of {quiz.questions.length}
             </p>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className={`flex items-center px-3 py-1 rounded-full ${
-              timeLeft < 60 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-            }`}>
-              <Clock className="w-4 h-4 mr-1" />
-              <span className="font-mono">{formatTime(timeLeft)}</span>
-            </div>
+          <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${
+            timeLeft < 60 ? 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300'
+          }`}>
+            <Clock className="h-4 w-4" />
+            <span className="tabular-nums">{formatTime(timeLeft)}</span>
           </div>
         </div>
-        
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-zinc-800">
           <div
-            className="bg-linear-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
+            className="h-full rounded-full bg-indigo-600 transition-[width] duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
-      {/* Question */}
-      <Card className="p-8 mb-6">
-        <h2 className="text-xl font-semibold mb-6 leading-relaxed">
+      <Card className="mb-4 p-5 sm:p-8">
+        <h2 className="mb-6 text-lg font-medium leading-7 text-slate-900 dark:text-zinc-50 sm:text-xl">
           {currentQ.question}
         </h2>
-        
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {currentQ.options.map((option, index) => (
             <button
               key={index}
               onClick={() => handleAnswerSelect(index)}
-              className={`w-full p-4 text-left rounded-lg border-2 transition-all duration-200 ${
+              className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3.5 text-left text-sm ${
                 selectedAnswer === index
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-900 dark:border-indigo-400 dark:bg-indigo-500/15 dark:text-indigo-100'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:border-white/20 dark:hover:bg-white/5'
               }`}
             >
-              <div className="flex items-center">
-                <span className="w-6 h-6 rounded-full border-2 border-current flex items-center justify-center mr-3 text-sm">
-                  {String.fromCharCode(65 + index)}
-                </span>
-                <span>{option}</span>
-              </div>
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                selectedAnswer === index ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300'
+              }`}>
+                {String.fromCharCode(65 + index)}
+              </span>
+              <span>{option}</span>
             </button>
           ))}
         </div>
       </Card>
 
-      {/* Navigation */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Button
           variant="outline"
           onClick={handlePrevious}
@@ -243,17 +225,17 @@ export const QuizInterface: React.FC = () => {
           Previous
         </Button>
 
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap justify-center gap-1.5">
           {quiz.questions.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentQuestion(index)}
-              className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+              className={`h-8 w-8 rounded-full text-xs font-semibold ${
                 index === currentQuestion
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-indigo-600 text-white'
                   : answers[index] !== -1
-                  ? 'bg-green-100 text-green-700 border border-green-300'
-                  : 'bg-gray-100 text-gray-600 border border-gray-300'
+                  ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30'
+                  : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-zinc-800'
               }`}
             >
               {index + 1}

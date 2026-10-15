@@ -12,20 +12,20 @@ export const Input: React.FC<InputProps> = ({
   ...props
 }) => {
   return (
-    <div className="mb-4">
+    <div>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-zinc-300">
           {label}
         </label>
       )}
       <input
-        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-          error ? 'border-red-500' : 'border-gray-300'
+        className={`h-11 w-full rounded-xl border bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-500 ${
+          error ? 'border-red-400' : 'border-slate-300 dark:border-white/10'
         } ${className}`}
         {...props}
       />
       {error && (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
+        <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
     </div>
   );

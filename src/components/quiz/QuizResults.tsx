@@ -11,7 +11,8 @@ import {
   CheckCircle, 
   XCircle,
   RotateCcw,
-  Home
+  Home,
+  BarChart3
 } from 'lucide-react';
 
 const savedAttemptKeys = new Set<string>();
@@ -95,65 +96,55 @@ export const QuizResults: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="text-center mb-8">
-        <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-        <h1 className="text-3xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Quiz Complete!
-        </h1>
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-6">
+        <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{quiz.topic}</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">Quiz complete</h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">{getScoreMessage(percentage)}</p>
         {autoSubmitted && (
-          <p className="text-orange-600 mt-2 font-medium">
-            ⏰ Quiz was automatically submitted due to time limit
+          <p className="mt-2 text-sm font-medium text-amber-700">
+            Submitted automatically when the timer ended.
           </p>
         )}
-        <p className="text-gray-600 mt-2">
-          Here are your results for {quiz.topic}
-        </p>
         {saving && (
-          <p className="text-blue-600 mt-2 text-sm">
-            📊 Saving your results...
-          </p>
+          <p className="mt-2 text-sm text-indigo-600">Saving your result...</p>
         )}
       </div>
 
-      {/* Score Summary */}
-      <Card className="p-8 mb-8">
-        <div className="text-center mb-6">
-          <div className={`text-6xl font-bold mb-2 ${getScoreColor(percentage)}`}>
+      <Card className="mb-6 p-6 sm:p-8">
+        <div className="mb-6 text-center">
+          <div className={`text-6xl font-semibold tracking-tight ${getScoreColor(percentage)}`}>
             {percentage}%
           </div>
-          <p className="text-xl text-gray-600 mb-4">
-            {score} out of {totalQuestions} correct
-          </p>
-          <p className="text-lg font-medium text-gray-700">
-            {getScoreMessage(percentage)}
+          <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">
+            {score} of {totalQuestions} correct
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center">
             <Target className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Score</p>
-            <p className="text-xl font-bold">{score}/{totalQuestions}</p>
+            <p className="text-sm text-gray-600 dark:text-zinc-400">Score</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-zinc-50">{score}/{totalQuestions}</p>
           </div>
           
           <div className="text-center">
             <Clock className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Time Taken</p>
-            <p className="text-xl font-bold">{formatTime(timeTaken)}</p>
+            <p className="text-sm text-gray-600 dark:text-zinc-400">Time Taken</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-zinc-50">{formatTime(timeTaken)}</p>
           </div>
           
           <div className="text-center">
             <Trophy className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Accuracy</p>
-            <p className="text-xl font-bold">{percentage}%</p>
+            <p className="text-sm text-gray-600 dark:text-zinc-400">Accuracy</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-zinc-50">{percentage}%</p>
           </div>
         </div>
       </Card>
 
       {/* Question Review */}
       <Card className="p-8 mb-8">
-        <h2 className="text-2xl font-bold mb-6">Question Review</h2>
+        <h2 className="mb-6 text-2xl font-bold text-slate-900 dark:text-zinc-50">Question Review</h2>
         
         <div className="space-y-6">
           {quiz.questions.map((question, index) => {
@@ -161,9 +152,9 @@ export const QuizResults: React.FC = () => {
             const isCorrect = userAnswer === question.correctAnswer;
             
             return (
-              <div key={question.id} className="border rounded-lg p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="font-semibold text-lg flex-1">
+              <div key={question.id} className="rounded-lg border border-slate-200 p-6 dark:border-white/10">
+                <div className="mb-4 flex items-start justify-between">
+                  <h3 className="flex-1 text-lg font-semibold text-slate-900 dark:text-zinc-50">
                     {index + 1}. {question.question}
                   </h3>
                   {isCorrect ? (
@@ -179,10 +170,10 @@ export const QuizResults: React.FC = () => {
                       key={optionIndex}
                       className={`p-3 rounded-lg border ${
                         optionIndex === question.correctAnswer
-                          ? 'bg-green-50 border-green-200 text-green-800'
+                          ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300'
                           : optionIndex === userAnswer && !isCorrect
-                          ? 'bg-red-50 border-red-200 text-red-800'
-                          : 'bg-gray-50 border-gray-200'
+                          ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300'
+                          : 'border-gray-200 bg-gray-50 text-slate-700 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300'
                       }`}
                     >
                       <div className="flex items-center">
@@ -202,8 +193,8 @@ export const QuizResults: React.FC = () => {
                 </div>
                 
                 {question.explanation && (
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
+                  <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-indigo-500/30 dark:bg-indigo-500/10">
+                    <p className="text-sm text-blue-800 dark:text-indigo-200">
                       <strong>Explanation:</strong> {question.explanation}
                     </p>
                   </div>
@@ -225,6 +216,15 @@ export const QuizResults: React.FC = () => {
           Back to Dashboard
         </Button>
         
+        <Button
+          variant="outline"
+          onClick={() => navigate('/user-dashboard')}
+          className="flex items-center"
+        >
+          <BarChart3 className="mr-2 h-4 w-4" />
+          View history
+        </Button>
+
         <Button
           onClick={() => navigate('/quiz-setup', { state: { topic: quiz.topic } })}
           className="flex items-center"

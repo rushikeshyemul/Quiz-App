@@ -82,11 +82,30 @@ router.get('/', auth, async (req, res) => {
 router.post('/attempt', auth, async (req, res) => {
   try {
     const { quizId, topic, answers, score, totalQuestions, timeTaken, difficulty } = req.body;
+    const incomingAnswers = Array.isArray(answers) ? answers : [];
+    const recentDuplicate = await QuizAttempt.findOne({
+      user: req.userId,
+      quiz: quizId,
+      score,
+      totalQuestions,
+      timeTaken,
+      difficulty,
+      completedAt: { $gte: new Date(Date.now() - 5000) },
+    }).sort({ completedAt: -1 });
+
+    if (
+      recentDuplicate &&
+      recentDuplicate.answers.length === incomingAnswers.length &&
+      recentDuplicate.answers.every((answer, index) => answer === incomingAnswers[index])
+    ) {
+      return res.json(recentDuplicate);
+    }
+
     const quizAttempt = await QuizAttempt.create({
       user: req.userId,
       quiz: quizId,
       topic,
-      answers,
+      answers: incomingAnswers,
       score,
       totalQuestions,
       timeTaken,
@@ -113,12 +132,16 @@ router.get('/attempts', auth, async (req, res) => {
 // Get user's quiz statistics
 router.get('/stats', auth, async (req, res) => {
   try {
-    const attempts = await QuizAttempt.find({ user: req.userId });
-    
+    const attempts = await QuizAttempt.find({ user: req.userId }).sort({ completedAt: -1 });
+    const averagePercentage = attempts.reduce((sum, attempt) => {
+      if (!attempt.totalQuestions) return sum;
+      return sum + (attempt.score / attempt.totalQuestions) * 100;
+    }, 0);
+
     const stats = {
       totalAttempts: attempts.length,
-      averageScore: attempts.length > 0 
-        ? (attempts.reduce((sum, attempt) => sum + attempt.score, 0) / attempts.length).toFixed(2)
+      averageScore: attempts.length > 0
+        ? (averagePercentage / attempts.length).toFixed(2)
         : 0,
       totalQuestions: attempts.reduce((sum, attempt) => sum + attempt.totalQuestions, 0),
       totalTime: attempts.reduce((sum, attempt) => sum + attempt.timeTaken, 0),

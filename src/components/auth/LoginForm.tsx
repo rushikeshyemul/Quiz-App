@@ -5,13 +5,14 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Card } from '../ui/Card';
 import { Mail, Lock, BookOpen } from 'lucide-react';
+import { ThemeToggle } from '../layout/ThemeToggle';
 
 export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -31,74 +32,64 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <BookOpen className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-          <h2 className="text-3xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Welcome Back
-          </h2>
-          <p className="text-gray-600 mt-2">Sign in to your account</p>
+    <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
+      <ThemeToggle className="absolute right-4 top-4" />
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm">
+            <BookOpen className="h-5 w-5" />
+          </span>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">Welcome back</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Sign in to continue your quizzes</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="relative">
-            <Mail className="w-5 h-5 text-gray-400 absolute left-3 top-3" />
-            <Input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="pl-10"
-            />
-          </div>
-
-          <div className="relative">
-            <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-3" />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="pl-10"
-            />
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm">{error}</p>
+        <Card className="p-6 sm:p-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="pl-10"
+              />
             </div>
-          )}
 
-          <Button
-            type="submit"
-            loading={loading}
-            className="w-full"
-            size="lg"
-          >
-            Sign In
-          </Button>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="pl-10"
+              />
+            </div>
 
-          <div className="text-center">
-            <p className="text-gray-600">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-blue-600 hover:text-blue-500 font-medium">
-                Sign up
-              </Link>
-            </p>
-          </div>
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 dark:border-red-500/30 dark:bg-red-500/10">
+                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              </div>
+            )}
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800">
-              Demo credentials:<br />
-              Email: user@example.com<br />
-              Password: password
-            </p>
-          </div>
-        </form>
-      </Card>
+            <Button type="submit" loading={loading} className="w-full" size="lg">
+              Sign in
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-slate-500 dark:text-zinc-400">
+            New here?{' '}
+            <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+              Create an account
+            </Link>
+          </p>
+        </Card>
+      </div>
     </div>
   );
 };

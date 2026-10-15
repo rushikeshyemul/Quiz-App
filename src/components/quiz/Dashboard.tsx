@@ -61,79 +61,90 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  return (
-    <div className="max-w-6xl mx-auto">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-          Welcome to QuizMaster
-        </h1>
-        <p className="text-xl text-gray-600">
-          Test your knowledge and track your progress
-        </p>
-      </div>
+  const fieldClass = "h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100";
 
-      {/* Tab Navigation */}
-      <div className="flex justify-center mb-8">
-        <div className="flex bg-gray-100 rounded-lg p-1">
+  return (
+    <div>
+      <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">QuizMaster</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">
+            Create a quiz
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-zinc-400">
+            Pick a topic, set the difficulty, and Gemini writes a fresh set of questions.
+          </p>
+        </div>
+        <div className="inline-flex rounded-xl bg-slate-100 p-1 dark:bg-zinc-800">
           <button
             onClick={() => setActiveTab('create')}
-            className={`flex items-center px-6 py-3 rounded-md font-medium transition-colors ${
+            className={`flex items-center rounded-lg px-4 py-2 text-sm font-medium ${
               activeTab === 'create'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-white text-slate-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50'
+                : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100'
             }`}
           >
-            <Home className="w-4 h-4 mr-2" />
-            Create Quiz
+            <Home className="mr-2 h-4 w-4" />
+            Create
           </button>
           <button
             onClick={() => setActiveTab('records')}
-            className={`flex items-center px-6 py-3 rounded-md font-medium transition-colors ${
+            className={`flex items-center rounded-lg px-4 py-2 text-sm font-medium ${
               activeTab === 'records'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-white text-slate-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50'
+                : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100'
             }`}
           >
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Test Records
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Records
           </button>
         </div>
       </div>
 
       {activeTab === 'create' ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            <Card className="p-6 text-center" hover>
-              <TrendingUp className="w-12 h-12 text-green-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Track Progress</h3>
-              <p className="text-gray-600">Monitor your quiz performance and improvement over time</p>
+          <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Card className="flex items-start gap-3 p-4" hover>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+                <TrendingUp className="h-4 w-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-50">Track progress</h3>
+                <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Scores and history stay with your account.</p>
+              </div>
             </Card>
-
-            <Card className="p-6 text-center" hover>
-              <Target className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Customizable</h3>
-              <p className="text-gray-600">Choose topics, difficulty, and question count</p>
+            <Card className="flex items-start gap-3 p-4" hover>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
+                <Target className="h-4 w-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-50">Set the challenge</h3>
+                <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Choose length, time, and difficulty.</p>
+              </div>
             </Card>
-
-            <Card className="p-6 text-center" hover>
-              <Clock className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Timed Challenges</h3>
-              <p className="text-gray-600">Test your knowledge under time pressure</p>
+            <Card className="flex items-start gap-3 p-4" hover>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                <Clock className="h-4 w-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-50">Timed practice</h3>
+                <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">The quiz submits itself when time runs out.</p>
+              </div>
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card className="p-6">
-              <div className="flex items-center mb-6">
-                <BookOpen className="w-6 h-6 text-blue-600 mr-2" />
-                <h2 className="text-2xl font-bold">Choose a Topic</h2>
+              <div className="mb-6 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">Choose a topic</h2>
               </div>
               
               <div className="space-y-4">
                 {/* Topic Dropdown */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select from available topics:
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-zinc-300">
+                    Topic
                   </label>
                   <select
                     value={selectedTopic}
@@ -142,7 +153,7 @@ export const Dashboard: React.FC = () => {
                       setShowCustomInput(false);
                       setCustomTopic('');
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={fieldClass}
                   >
                     <option value="">-- Select a Topic --</option>
                     {topics.map((topic) => (
@@ -154,26 +165,24 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Custom Topic Option */}
-                <div className="text-center">
-                  <p className="text-gray-600 mb-2">or</p>
+                <div>
                   <Button
                     variant="outline"
                     onClick={() => {
                       setShowCustomInput(!showCustomInput);
                       setSelectedTopic('');
                     }}
-                    className="flex items-center"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Enter Custom Topic
+                    <Plus className="h-4 w-4" />
+                    {showCustomInput ? 'Use the topic list' : 'Use a custom topic'}
                   </Button>
                 </div>
 
                 {/* Custom Topic Input */}
                 {showCustomInput && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Enter your custom topic:
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-zinc-300">
+                      Custom topic
                     </label>
                     <Input
                       type="text"
@@ -192,43 +201,30 @@ export const Dashboard: React.FC = () => {
                   className="w-full"
                   size="lg"
                 >
-                  <Play className="w-5 h-5 mr-2" />
-                  Start Quiz Setup
+                  <Play className="h-4 w-4" />
+                  Continue
                 </Button>
               </div>
             </Card>
 
-            <Card className="p-6">
-              <div className="flex items-center mb-6">
-                <Upload className="w-6 h-6 text-purple-600 mr-2" />
-                <h2 className="text-2xl font-bold">Upload PDF Quiz</h2>
+            <Card className="flex flex-col p-6">
+              <div className="mb-6 flex items-center gap-2">
+                <Upload className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">Upload a PDF</h2>
               </div>
-              
-              <div className="text-center">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4">
-                    Upload a PDF file containing quiz questions and answers
-                  </p>
-                  <Button onClick={handlePDFUpload} className="mb-2">
-                    Upload PDF
-                  </Button>
-                  <p className="text-sm text-gray-500">
-                    Supports PDF files up to 10MB
-                  </p>
-                </div>
+              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center dark:border-white/15 dark:bg-zinc-950">
+                <Upload className="mb-3 h-8 w-8 text-slate-400 dark:text-zinc-500" />
+                <p className="max-w-xs text-sm text-slate-600 dark:text-zinc-400">
+                  Bring a PDF of notes or questions and turn it into a quiz.
+                </p>
+                <Button onClick={handlePDFUpload} variant="outline" className="mt-4">
+                  Choose PDF
+                </Button>
+                <p className="mt-3 text-xs text-slate-400 dark:text-zinc-500">PDF files up to 10MB</p>
               </div>
-
-              <div className="mt-6 pt-6 border-t">
-                <div className="flex items-center mb-4">
-                  <Settings className="w-5 h-5 text-gray-600 mr-2" />
-                  <h3 className="font-semibold">Quick Start</h3>
-                </div>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <p>• Select a topic or upload a PDF</p>
-                  <p>• Configure quiz settings</p>
-                  <p>• Take the quiz and view results</p>
-                </div>
+              <div className="mt-6 flex items-start gap-2 border-t border-slate-100 pt-4 text-sm text-slate-500 dark:border-white/10 dark:text-zinc-400">
+                <Settings className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>Choose a topic, set the quiz, then review your score and explanations.</p>
               </div>
             </Card>
           </div>
