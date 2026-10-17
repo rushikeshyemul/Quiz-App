@@ -58,7 +58,7 @@ export const RegisterForm: React.FC = () => {
         <Card className="p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
-              <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 type="text"
                 placeholder="Full name"
@@ -71,7 +71,7 @@ export const RegisterForm: React.FC = () => {
             </div>
 
             <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Mail className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 type="email"
                 placeholder="Email address"
@@ -84,7 +84,7 @@ export const RegisterForm: React.FC = () => {
             </div>
 
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 type="password"
                 placeholder="Password"
@@ -97,7 +97,7 @@ export const RegisterForm: React.FC = () => {
             </div>
 
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 type="password"
                 placeholder="Confirm password"
