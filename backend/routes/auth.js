@@ -1,41 +1,73 @@
-import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import express from "express";
+import bcrypt from "bcryptjs";
+import User from "../models/User.js";
+import { HttpError } from "../lib/httpError.js";
+import { toPublicUser } from "../lib/presenters.js";
+import { signAuthToken } from "../lib/tokens.js";
+import { validateLogin, validateRegistration } from "../lib/validators.js";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { rateLimit } from "../middleware/rateLimit.js";
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function findUserByEmail(email, selectPassword = false) {
+  const query = User.findOne({
+    email: { $regex: `^${escapeRegex(email)}$`, $options: "i" },
+  });
+  return selectPassword ? query.select("+password") : query;
+}
 
 const router = express.Router();
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  keyFn: (req) => req.ip || "unknown",
+});
 
-// Register
-router.post('/register', async (req, res) => {
+router.post("/register", authLimiter, async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: 'Email already registered' });
+    const { name, email, password } = validateRegistration(req.body);
+    const existingUser = await findUserByEmail(email);
+    if (existingUser) {
+      throw new HttpError(400, "Email already registered");
+    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
     const user = await User.create({ name, email, password: hashedPassword });
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ user: { id: user._id, name: user.name, email: user.email }, token });
-  } catch (err) {
-    res.status(500).json({ message: 'Registration failed', error: err.message });
+    const token = signAuthToken(user._id);
+    res.status(201).json({ user: toPublicUser(user), token });
+  } catch (error) {
+    next(error);
   }
 });
 
-// Login
-router.post('/login', async (req, res) => {
+router.post("/login", authLimiter, async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    const { email, password } = validateLogin(req.body);
+    const user = await findUserByEmail(email, true);
+    if (!user) {
+      throw new HttpError(400, "Invalid credentials");
+    }
+    if (user.status === "suspended") {
+      throw new HttpError(403, "This account is suspended");
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!isMatch) {
+      throw new HttpError(400, "Invalid credentials");
+    }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ user: { id: user._id, name: user.name, email: user.email }, token });
-  } catch (err) {
-    res.status(500).json({ message: 'Login failed', error: err.message });
+    const token = signAuthToken(user._id);
+    res.json({ user: toPublicUser(user), token });
+  } catch (error) {
+    next(error);
   }
 });
 
-export default router; 
+router.get("/me", requireAuth, (req, res) => {
+  res.json({ user: toPublicUser(req.user) });
+});
+
+export default router;

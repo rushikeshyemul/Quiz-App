@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Quiz } from '../../types';
-import { quizService } from '../../services/quizService';
+import { SubmissionResult } from '../../types';
 import { 
   Trophy, 
   Clock, 
@@ -12,69 +11,34 @@ import {
   XCircle,
   RotateCcw,
   Home,
-  BarChart3
+  BarChart3,
+  Award
 } from 'lucide-react';
-
-const savedAttemptKeys = new Set<string>();
 
 export const QuizResults: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [saving, setSaving] = useState(false);
 
-  const {
-    quiz,
-    answers,
-    score,
-    totalQuestions,
-    timeTaken,
-    autoSubmitted,
-    difficulty = 'medium',
-  } = location.state as {
-    quiz: Quiz;
-    answers: number[];
-    score: number;
-    totalQuestions: number;
-    timeTaken: number;
+  const state = location.state as {
+    result?: SubmissionResult;
     autoSubmitted?: boolean;
-    difficulty?: 'easy' | 'medium' | 'hard';
-  };
+  } | null;
+  const result = state?.result;
+  const autoSubmitted = state?.autoSubmitted;
 
-  useEffect(() => {
-    const attemptKey = [
-      quiz.id,
-      score,
-      timeTaken,
-      difficulty,
-      answers.join(","),
-    ].join("|");
-    if (savedAttemptKeys.has(attemptKey)) return;
-    savedAttemptKeys.add(attemptKey);
+  if (!result) {
+    return (
+      <div className="mx-auto max-w-xl text-center">
+        <Card className="p-8">
+          <h1 className="mb-3 text-2xl font-bold text-gray-900 dark:text-zinc-50">No result to show</h1>
+          <p className="mb-6 text-gray-600 dark:text-zinc-400">Submit a quiz to see the server-calculated score.</p>
+          <Button onClick={() => navigate('/dashboard')}>Back to dashboard</Button>
+        </Card>
+      </div>
+    );
+  }
 
-    const saveQuizAttempt = async () => {
-      try {
-        setSaving(true);
-        await quizService.saveQuizAttempt({
-          quizId: quiz.id,
-          topic: quiz.topic,
-          answers,
-          score,
-          totalQuestions,
-          timeTaken,
-          difficulty,
-        });
-      } catch (error) {
-        savedAttemptKeys.delete(attemptKey);
-        console.error('Failed to save quiz attempt:', error);
-      } finally {
-        setSaving(false);
-      }
-    };
-
-    void saveQuizAttempt();
-  }, [quiz.id, quiz.topic, answers, score, totalQuestions, timeTaken, difficulty]);
-
-  const percentage = Math.round((score / totalQuestions) * 100);
+  const { score, totalQuestions, timeTaken, percentage, topic, review } = result;
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -98,7 +62,7 @@ export const QuizResults: React.FC = () => {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{quiz.topic}</p>
+        <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{topic}</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">Quiz complete</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">{getScoreMessage(percentage)}</p>
         {autoSubmitted && (
@@ -106,10 +70,23 @@ export const QuizResults: React.FC = () => {
             Submitted automatically when the timer ended.
           </p>
         )}
-        {saving && (
-          <p className="mt-2 text-sm text-indigo-600">Saving your result...</p>
-        )}
       </div>
+
+      {result.certificate && (
+        <Card className="mb-6 p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-emerald-700">Perfect score</p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-zinc-50">Your certificate is ready</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">{result.certificate.certificateNumber}</p>
+            </div>
+            <Button onClick={() => navigate(`/certificates/${result.certificate?.id}`)}>
+              <Award className="h-4 w-4" />
+              View certificate
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card className="mb-6 p-6 sm:p-8">
         <div className="mb-6 text-center">
@@ -147,9 +124,9 @@ export const QuizResults: React.FC = () => {
         <h2 className="mb-6 text-2xl font-bold text-slate-900 dark:text-zinc-50">Question Review</h2>
         
         <div className="space-y-6">
-          {quiz.questions.map((question, index) => {
-            const userAnswer = answers[index];
-            const isCorrect = userAnswer === question.correctAnswer;
+          {review.map((question, index) => {
+            const userAnswer = question.selectedAnswer;
+            const isCorrect = question.isCorrect;
             
             return (
               <div key={question.id} className="rounded-lg border border-slate-200 p-6 dark:border-white/10">
@@ -197,6 +174,11 @@ export const QuizResults: React.FC = () => {
                     <p className="text-sm text-blue-800 dark:text-indigo-200">
                       <strong>Explanation:</strong> {question.explanation}
                     </p>
+                    {question.sourceQuote && (
+                      <p className="mt-2 text-sm text-blue-800 dark:text-indigo-200">
+                        <strong>From your notes:</strong> {question.sourceQuote}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -226,7 +208,7 @@ export const QuizResults: React.FC = () => {
         </Button>
 
         <Button
-          onClick={() => navigate('/quiz-setup', { state: { topic: quiz.topic } })}
+          onClick={() => navigate('/quiz-setup', { state: { topic } })}
           className="flex items-center"
         >
           <RotateCcw className="w-4 h-4 mr-2" />

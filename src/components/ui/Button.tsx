@@ -17,10 +17,10 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseClasses = 'inline-flex items-center justify-center gap-2 rounded-xl font-medium tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-offset-zinc-950';
+  const baseClasses = 'inline-flex items-center justify-center gap-2 rounded-xl font-medium tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-offset-zinc-950';
 
   const variantClasses = {
-    primary: 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-500',
+    primary: 'bg-emerald-700 text-white shadow-sm hover:bg-emerald-600',
     secondary: 'bg-slate-900 text-white shadow-sm hover:bg-slate-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white',
     outline: 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:border-white/15 dark:bg-transparent dark:text-zinc-200 dark:hover:border-white/25 dark:hover:bg-white/5',
     ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white',

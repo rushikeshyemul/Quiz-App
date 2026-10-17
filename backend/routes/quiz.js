@@ -1,158 +1,223 @@
-import express from 'express';
-import jwt from 'jsonwebtoken';
-import Quiz from '../models/Quiz.js';
-import QuizAttempt from '../models/QuizAttempt.js';
-import { generateQuizWithGemini, isGeminiConfigured } from '../services/geminiQuiz.js';
+import express from "express";
+import Quiz from "../models/Quiz.js";
+import QuizAttempt from "../models/QuizAttempt.js";
+import { HttpError } from "../lib/httpError.js";
+import { normalizeQuizQuestions } from "../lib/questions.js";
+import {
+  toAttemptSummary,
+  toCertificate,
+  toPlayerQuiz,
+  toQuizSummary,
+  toSubmissionResponse,
+} from "../lib/presenters.js";
+import { scoreQuiz, summarizeAttempts, topicAccuracy } from "../lib/scoreQuiz.js";
+import {
+  validateDifficulty,
+  validateQuestionCount,
+  validateSubmissionId,
+  validateTimeLimit,
+  validateTimeTaken,
+  validateTopic,
+} from "../lib/validators.js";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { rateLimit } from "../middleware/rateLimit.js";
+import { generateQuizWithGemini, isGeminiConfigured } from "../services/geminiQuiz.js";
+import { issueCertificateForAttempt, listCertificatesForUser } from "../services/certificates.js";
 
 const router = express.Router();
+const generateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 12,
+  keyFn: (req) => req.userId || req.ip || "unknown",
+});
 
-// Middleware to verify JWT
-function auth(req, res, next) {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'No token provided' });
+router.use(requireAuth);
+
+async function saveOwnedAttempt(req, quiz) {
+  const submissionId = validateSubmissionId(req.body.submissionId);
+  const existing = await QuizAttempt.findOne({ user: req.userId, submissionId });
+  if (existing) {
+    if (String(existing.quiz) !== String(quiz._id)) {
+      throw new HttpError(409, "This submission was already used");
+    }
+    return { attempt: existing, duplicate: true, certificate: await issueCertificateForAttempt(req.user, existing) };
+  }
+
+  const scored = scoreQuiz(quiz.questions, req.body.answers);
+  const timeTaken = validateTimeTaken(req.body.timeTaken);
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.id;
-    next();
-  } catch (err) {
-    res.status(401).json({ message: 'Invalid token' });
+    const attempt = await QuizAttempt.create({
+      user: req.userId,
+      quiz: quiz._id,
+      topic: quiz.topic,
+      answers: scored.answers,
+      score: scored.score,
+      totalQuestions: scored.totalQuestions,
+      timeTaken,
+      difficulty: quiz.difficulty || "medium",
+      submissionId,
+    });
+    const certificate = await issueCertificateForAttempt(req.user, attempt);
+    return { attempt, duplicate: false, certificate };
+  } catch (error) {
+    if (error?.code === 11000) {
+      const raced = await QuizAttempt.findOne({ user: req.userId, submissionId });
+      if (raced && String(raced.quiz) === String(quiz._id)) {
+        return {
+          attempt: raced,
+          duplicate: true,
+          certificate: await issueCertificateForAttempt(req.user, raced),
+        };
+      }
+    }
+    throw error;
   }
 }
 
-const ALLOWED_COUNTS = new Set([5, 10, 15, 20]);
-const ALLOWED_DIFFICULTIES = new Set(['easy', 'medium', 'hard']);
-
-router.post('/generate', auth, async (req, res) => {
+router.post("/generate", generateLimiter, async (req, res, next) => {
   try {
-    const topic = typeof req.body.topic === 'string' ? req.body.topic.trim() : '';
-    const questionCount = Number(req.body.questionCount);
-    const difficulty = req.body.difficulty;
+    const topic = validateTopic(req.body.topic);
+    const questionCount = validateQuestionCount(req.body.questionCount);
+    const difficulty = validateDifficulty(req.body.difficulty);
+    const timeLimit = validateTimeLimit(req.body.timeLimit ?? 15);
 
-    if (!topic || topic.length > 200) {
-      return res.status(400).json({ message: 'A topic is required' });
-    }
-    if (!ALLOWED_COUNTS.has(questionCount)) {
-      return res.status(400).json({ message: 'Choose 5, 10, 15, or 20 questions' });
-    }
-    if (!ALLOWED_DIFFICULTIES.has(difficulty)) {
-      return res.status(400).json({ message: 'Difficulty must be easy, medium, or hard' });
-    }
     if (!isGeminiConfigured()) {
-      return res.status(503).json({
-        code: 'GEMINI_NOT_CONFIGURED',
-        message: 'Add GEMINI_API_KEY to backend/.env and restart the API',
-      });
+      throw new HttpError(
+        503,
+        "Quiz generation is unavailable. Add GEMINI_API_KEY to the server configuration and restart the API.",
+        "GEMINI_NOT_CONFIGURED"
+      );
     }
 
     const questions = await generateQuizWithGemini({ topic, questionCount, difficulty });
-    res.json({ questions });
-  } catch (err) {
-    console.error('Gemini quiz generation failed:', err.message);
-    res.status(502).json({ message: 'Gemini could not generate this quiz. Check the API key and model, then try again.' });
-  }
-});
-
-// Save a quiz
-router.post('/', auth, async (req, res) => {
-  try {
-    const { topic, questions, timeLimit } = req.body;
     const quiz = await Quiz.create({
       user: req.userId,
       topic,
       questions,
       timeLimit,
-    });
-    res.json(quiz);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to save quiz', error: err.message });
-  }
-});
-
-// Get all quizzes for the logged-in user
-router.get('/', auth, async (req, res) => {
-  try {
-    const quizzes = await Quiz.find({ user: req.userId });
-    res.json(quizzes);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch quizzes', error: err.message });
-  }
-});
-
-// Save quiz attempt
-router.post('/attempt', auth, async (req, res) => {
-  try {
-    const { quizId, topic, answers, score, totalQuestions, timeTaken, difficulty } = req.body;
-    const incomingAnswers = Array.isArray(answers) ? answers : [];
-    const recentDuplicate = await QuizAttempt.findOne({
-      user: req.userId,
-      quiz: quizId,
-      score,
-      totalQuestions,
-      timeTaken,
       difficulty,
-      completedAt: { $gte: new Date(Date.now() - 5000) },
-    }).sort({ completedAt: -1 });
+    });
+    res.status(201).json(toPlayerQuiz(quiz));
+  } catch (error) {
+    next(error);
+  }
+});
 
-    if (
-      recentDuplicate &&
-      recentDuplicate.answers.length === incomingAnswers.length &&
-      recentDuplicate.answers.every((answer, index) => answer === incomingAnswers[index])
-    ) {
-      return res.json(recentDuplicate);
-    }
-
-    const quizAttempt = await QuizAttempt.create({
+router.post("/", async (req, res, next) => {
+  try {
+    const topic = validateTopic(req.body.topic);
+    const questions = normalizeQuizQuestions(req.body.questions);
+    const timeLimit = validateTimeLimit(req.body.timeLimit ?? 15);
+    const difficulty = req.body.difficulty ? validateDifficulty(req.body.difficulty) : "medium";
+    const quiz = await Quiz.create({
       user: req.userId,
-      quiz: quizId,
       topic,
-      answers: incomingAnswers,
-      score,
-      totalQuestions,
-      timeTaken,
+      questions,
+      timeLimit,
       difficulty,
     });
-    res.json(quizAttempt);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to save quiz attempt', error: err.message });
+    res.status(201).json(toPlayerQuiz(quiz));
+  } catch (error) {
+    next(error);
   }
 });
 
-// Get user's quiz attempts (test records)
-router.get('/attempts', auth, async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
-    const attempts = await QuizAttempt.find({ user: req.userId })
-      .sort({ completedAt: -1 })
-      .populate('quiz', 'topic questions');
-    res.json(attempts);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch quiz attempts', error: err.message });
+    const quizzes = await Quiz.find({ user: req.userId }).sort({ createdAt: -1 });
+    res.json(quizzes.map(toQuizSummary));
+  } catch (error) {
+    next(error);
   }
 });
 
-// Get user's quiz statistics
-router.get('/stats', auth, async (req, res) => {
+router.post("/attempt", async (req, res, next) => {
+  try {
+    if (!req.body.quizId) {
+      throw new HttpError(400, "A quiz id is required");
+    }
+    const quiz = await Quiz.findOne({ _id: req.body.quizId, user: req.userId });
+    if (!quiz) {
+      throw new HttpError(404, "Quiz not found");
+    }
+    const { attempt, duplicate, certificate } = await saveOwnedAttempt(req, quiz);
+    const status = duplicate ? 200 : 201;
+    res.status(status).json(toSubmissionResponse(attempt, quiz, { duplicate, certificate }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/:id/submit", async (req, res, next) => {
+  try {
+    const quiz = await Quiz.findOne({ _id: req.params.id, user: req.userId });
+    if (!quiz) {
+      throw new HttpError(404, "Quiz not found");
+    }
+    const { attempt, duplicate, certificate } = await saveOwnedAttempt(req, quiz);
+    const status = duplicate ? 200 : 201;
+    res.status(status).json(toSubmissionResponse(attempt, quiz, { duplicate, certificate }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/attempts", async (req, res, next) => {
   try {
     const attempts = await QuizAttempt.find({ user: req.userId }).sort({ completedAt: -1 });
-    const averagePercentage = attempts.reduce((sum, attempt) => {
-      if (!attempt.totalQuestions) return sum;
-      return sum + (attempt.score / attempt.totalQuestions) * 100;
-    }, 0);
-
-    const stats = {
-      totalAttempts: attempts.length,
-      averageScore: attempts.length > 0
-        ? (averagePercentage / attempts.length).toFixed(2)
-        : 0,
-      totalQuestions: attempts.reduce((sum, attempt) => sum + attempt.totalQuestions, 0),
-      totalTime: attempts.reduce((sum, attempt) => sum + attempt.timeTaken, 0),
-      topics: [...new Set(attempts.map(attempt => attempt.topic))],
-      recentAttempts: attempts.slice(0, 5), // Last 5 attempts
-    };
-    
-    res.json(stats);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch quiz statistics', error: err.message });
+    res.json(attempts.map(toAttemptSummary));
+  } catch (error) {
+    next(error);
   }
 });
 
-export default router; 
+router.get("/stats", async (req, res, next) => {
+  try {
+    const attempts = await QuizAttempt.find({ user: req.userId }).sort({ completedAt: -1 });
+    const summary = summarizeAttempts(attempts);
+    res.json({
+      ...summary,
+      recentAttempts: attempts.slice(0, 5).map(toAttemptSummary),
+      topicAccuracy: topicAccuracy(attempts),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/certificates", async (req, res, next) => {
+  try {
+    const certificates = await listCertificatesForUser(req.user);
+    res.json(certificates.map(toCertificate));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/certificates/:id", async (req, res, next) => {
+  try {
+    const certificates = await listCertificatesForUser(req.user);
+    const certificate = certificates.find((item) => String(item._id) === req.params.id);
+    if (!certificate) {
+      throw new HttpError(404, "Certificate not found");
+    }
+    res.json(toCertificate(certificate));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    const quiz = await Quiz.findOne({ _id: req.params.id, user: req.userId });
+    if (!quiz) {
+      throw new HttpError(404, "Quiz not found");
+    }
+    res.json(toPlayerQuiz(quiz));
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;

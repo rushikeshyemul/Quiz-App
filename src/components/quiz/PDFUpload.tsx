@@ -3,68 +3,81 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { quizService } from '../../services/quizService';
-import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { FileText, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export const PDFUpload: React.FC = () => {
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [file, setFile] = useState<File | null>(null);
+  const [material, setMaterial] = useState<{ id: string; filename: string; preview: string; charCount: number; pageCount: number } | null>(null);
+  const [questionCount, setQuestionCount] = useState(5);
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [busy, setBusy] = useState<'upload' | 'generate' | null>(null);
+  const [error, setError] = useState('');
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      if (selectedFile.type !== 'application/pdf') {
-        setError('Please select a PDF file');
-        return;
-      }
-      
-      if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
-        setError('File size must be less than 10MB');
-        return;
-      }
-      
-      setFile(selectedFile);
-      setError('');
+  const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = event.target.files?.[0];
+    setMaterial(null);
+    setError('');
+    if (!selected) {
+      setFile(null);
+      return;
     }
+    const allowed = selected.type === 'application/pdf' || selected.type === 'text/plain' || /\.(pdf|txt)$/i.test(selected.name);
+    if (!allowed) {
+      setFile(null);
+      setError('Choose a PDF or plain text file.');
+      return;
+    }
+    if (selected.size > 8 * 1024 * 1024) {
+      setFile(null);
+      setError('File must be 8 MB or smaller.');
+      return;
+    }
+    setFile(selected);
   };
 
   const handleUpload = async () => {
     if (!file) return;
-    
-    setUploading(true);
+    setBusy('upload');
     setError('');
-
     try {
-      const quiz = await quizService.uploadPDFQuiz(file);
-      
-      // Save quiz to backend to get proper MongoDB _id
-      const savedQuiz = await quizService.saveQuizToBackend({
-        topic: quiz.topic,
-        questions: quiz.questions,
-        timeLimit: quiz.timeLimit,
-      });
-      
-      navigate('/quiz', { 
-        state: { 
-          config: {
-            topic: savedQuiz.topic,
-            questionCount: savedQuiz.questions.length,
-            timeLimit: savedQuiz.timeLimit,
-            difficulty: 'medium' as const,
-          },
-          quiz: savedQuiz,
-        }
-      });
-    } catch {
-      setError('Failed to process PDF. Please try again.');
+      setMaterial(await quizService.uploadStudyMaterial(file));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not read that document');
     } finally {
-      setUploading(false);
+      setBusy(null);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!material) return;
+    setBusy('generate');
+    setError('');
+    try {
+      const quiz = await quizService.generateQuizFromMaterial(material.id, {
+        questionCount,
+        difficulty,
+        timeLimit: 15,
+      });
+      navigate('/quiz', {
+        state: {
+          quiz,
+          config: {
+            topic: quiz.topic,
+            questionCount: quiz.questions.length,
+            timeLimit: quiz.timeLimit,
+            difficulty,
+          },
+        },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not generate a quiz from this document');
+      setBusy(null);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="mx-auto max-w-2xl">
       <button
         type="button"
         onClick={() => navigate('/dashboard')}
@@ -73,97 +86,72 @@ export const PDFUpload: React.FC = () => {
         <ArrowLeft className="h-4 w-4" />
         Dashboard
       </button>
-      <div className="mb-8 text-center">
-        <Upload className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">
-          Upload PDF Quiz
-        </h1>
-        <p className="mt-2 text-gray-600 dark:text-zinc-400">
-          Upload a PDF containing quiz questions and answers
+      <div className="mb-8">
+        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Source-grounded quiz</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">Study material</h1>
+        <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400">
+          Upload notes as PDF or text. Questions are written from the extracted text. Scanned pages are rejected because OCR is not available.
         </p>
       </div>
 
-      <Card className="p-8">
-        <div className="space-y-6">
-          {/* File Upload Area */}
-          <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center dark:border-white/15">
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handleFileSelect}
-              className="hidden"
-              id="pdf-upload"
-            />
-            <label
-              htmlFor="pdf-upload"
-              className="cursor-pointer"
-            >
-              <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="mb-2 text-lg font-medium text-gray-700 dark:text-zinc-200">
-                Click to select PDF file
-              </p>
-              <p className="text-sm text-gray-500 dark:text-zinc-400">
-                Or drag and drop your PDF here
-              </p>
+      <Card className="p-6 sm:p-8">
+        <div className="space-y-5">
+          <label className="block rounded-xl border border-dashed border-slate-300 p-6 text-center dark:border-white/15">
+            <input type="file" accept=".pdf,.txt,application/pdf,text/plain" onChange={handleFile} className="hidden" />
+            <FileText className="mx-auto mb-3 h-8 w-8 text-slate-400" />
+            <p className="text-sm font-medium text-slate-800 dark:text-zinc-100">{file ? file.name : 'Choose a PDF or text file'}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-zinc-400">Maximum 8 MB. The original file is not kept after text is extracted.</p>
+          </label>
+
+          {error && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
+
+          {material && (
+            <div className="rounded-xl bg-slate-50 p-4 text-sm dark:bg-zinc-950">
+              <p className="font-medium text-slate-900 dark:text-zinc-50">{material.filename}</p>
+              <p className="mt-1 text-slate-500 dark:text-zinc-400">{material.charCount} characters · {material.pageCount} page{material.pageCount === 1 ? '' : 's'}</p>
+              <p className="mt-3 whitespace-pre-wrap text-slate-700 dark:text-zinc-300">{material.preview}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-sm font-medium text-slate-700 dark:text-zinc-300">
+              Questions
+              <select
+                value={questionCount}
+                onChange={(event) => setQuestionCount(Number(event.target.value))}
+                className="mt-1 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={20}>20</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium text-slate-700 dark:text-zinc-300">
+              Difficulty
+              <select
+                value={difficulty}
+                onChange={(event) => setDifficulty(event.target.value as 'easy' | 'medium' | 'hard')}
+                className="mt-1 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100"
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
             </label>
           </div>
 
-          {/* Selected File Info */}
-          {file && (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-500/30 dark:bg-green-500/10">
-              <div className="flex items-center">
-                <FileText className="w-6 h-6 text-green-600 mr-3" />
-                <div className="flex-1">
-                  <p className="font-medium text-green-900 dark:text-green-300">{file.name}</p>
-                  <p className="text-sm text-green-700 dark:text-green-400">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
-              <div className="flex items-center">
-                <AlertCircle className="mr-3 h-6 w-6 text-red-600" />
-                <p className="text-red-800 dark:text-red-300">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Instructions */}
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-indigo-500/30 dark:bg-indigo-500/10">
-            <h3 className="mb-2 font-semibold text-blue-900 dark:text-indigo-200">PDF Requirements:</h3>
-            <ul className="space-y-1 text-sm text-blue-800 dark:text-indigo-200">
-              <li>• File must be in PDF format</li>
-              <li>• Maximum file size: 10MB</li>
-              <li>• Questions should be clearly formatted</li>
-              <li>• Include answer options (A, B, C, D)</li>
-              <li>• Correct answers should be indicated</li>
-            </ul>
-          </div>
-
-          {/* Actions */}
-          <div className="flex space-x-4">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/dashboard')}
-              className="flex-1"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Dashboard
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={handleUpload} disabled={!file || busy !== null} loading={busy === 'upload'} className="flex-1">
+              Extract text
             </Button>
-            <Button
-              onClick={handleUpload}
-              disabled={!file || uploading}
-              loading={uploading}
-              className="flex-1"
-              size="lg"
-            >
-              {uploading ? 'Processing PDF...' : 'Upload & Start Quiz'}
+            <Button type="button" onClick={handleGenerate} disabled={!material || busy !== null} loading={busy === 'generate'} className="flex-1">
+              Generate quiz
             </Button>
           </div>
         </div>

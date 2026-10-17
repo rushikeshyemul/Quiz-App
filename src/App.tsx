@@ -9,6 +9,8 @@ import { QuizSetup } from './components/quiz/QuizSetup';
 import { QuizInterface } from './components/quiz/QuizInterface';
 import { QuizResults } from './components/quiz/QuizResults';
 import { PDFUpload } from './components/quiz/PDFUpload';
+import { QuizLibrary } from './components/quiz/QuizLibrary';
+import { CertificatePage } from './components/quiz/CertificatePage';
 import { UserDashboard } from './components/quiz/UserDashboard';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 
@@ -63,10 +65,26 @@ function App() {
               }
             />
             <Route
+              path="/library"
+              element={
+                <ProtectedRoute>
+                  <QuizLibrary />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/user-dashboard"
               element={
                 <ProtectedRoute>
                   <UserDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/certificates/:certificateId"
+              element={
+                <ProtectedRoute>
+                  <CertificatePage />
                 </ProtectedRoute>
               }
             />

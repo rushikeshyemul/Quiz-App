@@ -13,22 +13,17 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: clip;
   font-family: var(--font-sans);
-  color: #0f172a;
-  background:
-    radial-gradient(900px 420px at 100% -10%, rgb(224 231 255 / 0.7), transparent 60%),
-    radial-gradient(700px 360px at -10% 0%, rgb(219 234 254 / 0.8), transparent 55%),
-    #f6f7fb;
+  color: #102033;
+  background: #f4f7f5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 html.dark body {
-  color: #f4f4f5;
-  background:
-    radial-gradient(900px 420px at 100% -10%, rgb(49 46 129 / 0.28), transparent 60%),
-    radial-gradient(700px 360px at -10% 0%, rgb(24 24 27 / 0.9), transparent 55%),
-    #09090b;
+  color: #e7eee9;
+  background: #0c1422;
 }
 
 #root {
@@ -51,4 +46,31 @@ html.dark ::selection {
 
 ::selection {
   background: #c7d2fe;
+}
+
+@media print {
+  header,
+  .no-print {
+    display: none !important;
+  }
+
+  body,
+  html {
+    background: white !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .certificate-sheet {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+@page {
+  size: landscape;
+  margin: 8mm;
 }

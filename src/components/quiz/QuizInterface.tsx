@@ -16,8 +16,10 @@ export const QuizInterface: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const hasSubmitted = useRef(false);
+  const submissionId = useRef(crypto.randomUUID());
 
   const config: QuizConfig = location.state?.config;
   const existingQuiz: Quiz | null = location.state?.quiz || null;
@@ -58,28 +60,29 @@ export const QuizInterface: React.FC = () => {
     if (!quiz || !config || hasSubmitted.current) return;
     hasSubmitted.current = true;
     setSubmitting(true);
+    setSubmitError('');
 
-    const score = answers.reduce((acc, answer, index) => {
-      return acc + (answer === quiz.questions[index].correctAnswer ? 1 : 0);
-    }, 0);
-
-    const timeTaken = config.timeLimit * 60 - timeLeft;
-
-    navigate('/quiz-results', {
-      state: {
-        quiz,
-        answers,
-        score,
-        totalQuestions: quiz.questions.length,
-        timeTaken,
-        autoSubmitted,
-        difficulty: config.difficulty,
-      },
+    const timeTaken = Math.max(0, config.timeLimit * 60 - timeLeft);
+    void quizService.submitQuiz(quiz.id, {
+      answers,
+      timeTaken,
+      submissionId: submissionId.current,
+    }).then((result) => {
+      navigate('/quiz-results', {
+        state: {
+          result,
+          autoSubmitted,
+        },
+      });
+    }).catch((error: unknown) => {
+      hasSubmitted.current = false;
+      setSubmitting(false);
+      setSubmitError(error instanceof Error ? error.message : 'Could not submit this quiz');
     });
   }, [answers, config, navigate, quiz, timeLeft]);
 
   useEffect(() => {
-    if (!quiz || submitting) return;
+    if (!quiz || submitting || submitError) return;
 
     const delay = timeLeft <= 0 ? 0 : 1000;
     const timer = setTimeout(() => {
@@ -91,7 +94,7 @@ export const QuizInterface: React.FC = () => {
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [finishQuiz, quiz, submitting, timeLeft]);
+  }, [finishQuiz, quiz, submitError, submitting, timeLeft]);
 
   const handleAnswerSelect = (answerIndex: number) => {
     const newAnswers = [...answers];
@@ -170,18 +173,24 @@ export const QuizInterface: React.FC = () => {
               <ArrowLeft className="h-4 w-4" />
               Exit to dashboard
             </button>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{quiz.topic}</h1>
+            <h1 className="break-words text-xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{quiz.topic}</h1>
             <p className="text-sm text-slate-500 dark:text-zinc-400">
               Question {currentQuestion + 1} of {quiz.questions.length}
             </p>
           </div>
-          <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${
+          <div className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${
             timeLeft < 60 ? 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300'
           }`}>
             <Clock className="h-4 w-4" />
             <span className="tabular-nums">{formatTime(timeLeft)}</span>
           </div>
         </div>
+        {submitError && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+            <p>{submitError}</p>
+            <Button size="sm" onClick={() => finishQuiz(timeLeft <= 0)}>Retry submit</Button>
+          </div>
+        )}
         <div className="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-zinc-800">
           <div
             className="h-full rounded-full bg-indigo-600 transition-[width] duration-300"

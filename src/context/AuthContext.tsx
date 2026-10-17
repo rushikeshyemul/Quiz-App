@@ -1,4 +1,4 @@
-import React, { useState, ReactNode } from "react";
+import React, { useEffect, useState, ReactNode } from "react";
 import { AuthState } from "../types";
 import { API_URL } from "../config";
 import { AuthContext } from "./auth-context";
@@ -15,7 +15,7 @@ function readStoredAuth(): AuthState {
     return {
       user: JSON.parse(userData),
       isAuthenticated: true,
-      loading: false,
+      loading: true,
     };
   } catch {
     localStorage.removeItem("auth_token");
@@ -30,6 +30,47 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>(readStoredAuth);
+
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+
+    let active = true;
+    const verifySession = async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Session expired");
+        }
+        if (!res.ok) {
+          if (active) {
+            setAuthState((current) => ({ ...current, loading: false }));
+          }
+          return;
+        }
+        const data = (await res.json()) as { user: AuthState["user"] };
+        if (!active || !data.user) return;
+        localStorage.setItem("user_data", JSON.stringify(data.user));
+        setAuthState({ user: data.user, isAuthenticated: true, loading: false });
+      } catch (error) {
+        if (!active) return;
+        if (error instanceof Error && error.message === "Session expired") {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("user_data");
+          setAuthState({ user: null, isAuthenticated: false, loading: false });
+          return;
+        }
+        setAuthState((current) => ({ ...current, loading: false }));
+      }
+    };
+
+    void verifySession();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {

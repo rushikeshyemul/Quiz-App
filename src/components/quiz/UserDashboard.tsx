@@ -14,6 +14,7 @@ import {
   Clock4,
   CheckCircle,
   XCircle,
+  Award,
   Plus
 } from 'lucide-react';
 
@@ -34,6 +35,22 @@ interface UserStats {
   totalTime: number;
   topics: string[];
   recentAttempts: QuizAttempt[];
+  topicAccuracy?: Array<{
+    topic: string;
+    accuracy: number;
+    attempts: number;
+    total: number;
+    evidence: 'limited' | 'sufficient';
+    needsReview: boolean;
+  }>;
+}
+
+interface CertificateItem {
+  id: string;
+  topic: string;
+  certificateNumber: string;
+  issuedAt: string;
+  recipientName: string;
 }
 
 export const UserDashboard: React.FC = () => {
@@ -41,6 +58,7 @@ export const UserDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
+  const [certificates, setCertificates] = useState<CertificateItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,6 +81,11 @@ export const UserDashboard: React.FC = () => {
           throw new Error('Failed to fetch attempts');
         }
         setAttempts(await attemptsResponse.json());
+
+        const certificatesResponse = await fetch(`${API_URL}/quiz/certificates`, { headers });
+        if (certificatesResponse.ok) {
+          setCertificates(await certificatesResponse.json());
+        }
       } catch (error) {
         console.error('Error fetching user data:', error);
         setStats({
@@ -138,6 +161,35 @@ export const UserDashboard: React.FC = () => {
           </Button>
         </div>
 
+        <Card className="mb-8 p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-50">Certificates</h2>
+              <p className="mt-1 text-sm text-gray-500 dark:text-zinc-400">Awarded when the server records a perfect 100% score.</p>
+            </div>
+            <Award className="h-5 w-5 text-emerald-700" />
+          </div>
+          {certificates.length === 0 ? (
+            <p className="text-sm text-gray-600 dark:text-zinc-400">No certificates yet. Score 100% on a quiz to earn one.</p>
+          ) : (
+            <div className="space-y-3">
+              {certificates.map((certificate) => (
+                <div key={certificate.id} className="flex flex-col gap-3 rounded-lg bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-950">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-zinc-50">{certificate.topic}</p>
+                    <p className="text-sm text-gray-500 dark:text-zinc-400">
+                      {certificate.certificateNumber} · {new Date(certificate.issuedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button variant="outline" onClick={() => navigate(`/certificates/${certificate.id}`)}>
+                    View certificate
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         {/* Statistics Cards */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -191,6 +243,31 @@ export const UserDashboard: React.FC = () => {
               </div>
             </Card>
           </div>
+        )}
+
+        {stats && stats.topicAccuracy && stats.topicAccuracy.length > 0 && (
+          <Card className="p-6 mb-8">
+            <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-zinc-50">Where to revise</h2>
+            <p className="mb-4 text-sm text-gray-500 dark:text-zinc-400">
+              A topic is marked for review only after at least five answered questions and accuracy below 70%. Smaller samples stay labeled as limited evidence.
+            </p>
+            <div className="space-y-3">
+              {stats.topicAccuracy.map((topic) => (
+                <div key={topic.topic} className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 dark:bg-zinc-950">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-zinc-50">{topic.topic}</p>
+                    <p className="text-sm text-gray-500 dark:text-zinc-400">
+                      {topic.attempts} attempts · {topic.total} questions · {topic.evidence === 'limited' ? 'Limited evidence' : 'Enough evidence'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900 dark:text-zinc-50">{topic.accuracy}%</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-400">{topic.needsReview ? 'Revise this topic' : 'Keep practicing'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
         )}
 
         {/* Recent Performance Chart */}
@@ -248,7 +325,33 @@ export const UserDashboard: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="space-y-3 md:hidden">
+              {attempts.map((attempt) => {
+                const percentage = getScorePercentage(attempt.score, attempt.totalQuestions);
+                const passed = percentage >= 70;
+                return (
+                  <div key={attempt._id} className="rounded-xl border border-gray-100 p-4 dark:border-white/10">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-medium text-gray-900 dark:text-zinc-50">{attempt.topic}</p>
+                      <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(attempt.difficulty)}`}>
+                        {attempt.difficulty}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
+                      {attempt.score}/{attempt.totalQuestions} · {percentage}% · {formatTime(attempt.timeTaken)}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between text-sm">
+                      <span className="text-gray-500 dark:text-zinc-400">{formatDate(attempt.completedAt)}</span>
+                      <span className={passed ? 'font-medium text-green-600' : 'font-medium text-red-600'}>
+                        {passed ? 'Passed' : 'Failed'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-white/10">
@@ -310,6 +413,7 @@ export const UserDashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </Card>
       </div>

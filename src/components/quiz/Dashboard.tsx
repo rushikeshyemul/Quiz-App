@@ -61,13 +61,13 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  const fieldClass = "h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100";
+  const fieldClass = "h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100";
 
   return (
     <div>
       <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">QuizMaster</p>
+          <p className="text-sm font-medium text-[#1f6b4a] dark:text-[#7dcea0]">QuizMaster</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">
             Create a quiz
           </h1>
@@ -215,7 +215,7 @@ export const Dashboard: React.FC = () => {
               <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center dark:border-white/15 dark:bg-zinc-950">
                 <Upload className="mb-3 h-8 w-8 text-slate-400 dark:text-zinc-500" />
                 <p className="max-w-xs text-sm text-slate-600 dark:text-zinc-400">
-                  Bring a PDF of notes or questions and turn it into a quiz.
+                  Extract text from a PDF or notes file, then generate questions from that material.
                 </p>
                 <Button onClick={handlePDFUpload} variant="outline" className="mt-4">
                   Choose PDF

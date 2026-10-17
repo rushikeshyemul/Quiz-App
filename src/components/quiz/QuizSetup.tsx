@@ -77,7 +77,7 @@ export const QuizSetup: React.FC = () => {
             <select
               value={config.questionCount}
               onChange={(e) => handleConfigChange('questionCount', parseInt(e.target.value))}
-              className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100"
+              className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100"
             >
               <option value={5}>5 Questions</option>
               <option value={10}>10 Questions</option>
@@ -94,7 +94,7 @@ export const QuizSetup: React.FC = () => {
             <select
               value={config.timeLimit}
               onChange={(e) => handleConfigChange('timeLimit', parseInt(e.target.value))}
-              className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100"
+              className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100"
             >
               <option value={5}>5 minutes</option>
               <option value={10}>10 minutes</option>

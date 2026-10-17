@@ -4,7 +4,8 @@ import { useAuth } from '../../context/useAuth';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Card } from '../ui/Card';
-import { Mail, Lock, BookOpen } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
+import { Logo } from '../brand/Logo';
 import { ThemeToggle } from '../layout/ThemeToggle';
 
 export const LoginForm: React.FC = () => {
@@ -36,9 +37,7 @@ export const LoginForm: React.FC = () => {
       <ThemeToggle className="absolute right-4 top-4" />
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
-          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm">
-            <BookOpen className="h-5 w-5" />
-          </span>
+          <Logo size="lg" stacked className="mb-4" />
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">Welcome back</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Sign in to continue your quizzes</p>
         </div>

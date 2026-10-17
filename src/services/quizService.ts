@@ -1,280 +1,46 @@
-import { Quiz, Question, QuizConfig, QuizAttempt, UserStats } from "../types";
+import { Certificate, Quiz, QuizAttempt, QuizConfig, SubmissionResult, UserStats } from "../types";
 import { API_URL } from "../config";
 
 const generatedQuizLoads = new Map<string, Promise<Quiz>>();
-const attemptSaves = new Map<string, Promise<QuizAttempt>>();
 
-function generatedQuizKey(config: QuizConfig) {
-  return [
-    config.topic,
-    config.questionCount,
-    config.timeLimit,
-    config.difficulty,
-  ].join("|");
+function authHeaders() {
+  const token = localStorage.getItem("auth_token");
+  if (!token) {
+    throw new Error("User not authenticated");
+  }
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
 }
 
-function attemptSaveKey(attempt: {
-  quizId: string;
-  score: number;
-  timeTaken: number;
-  difficulty: string;
-  answers: number[];
-}) {
-  return [
-    attempt.quizId,
-    attempt.score,
-    attempt.timeTaken,
-    attempt.difficulty,
-    attempt.answers.join(","),
-  ].join("|");
+async function readError(response: Response, fallback: string) {
+  const data = (await response.json().catch(() => null)) as { message?: string } | null;
+  return data?.message || fallback;
+}
+
+function generatedQuizKey(config: QuizConfig) {
+  return [config.topic, config.questionCount, config.timeLimit, config.difficulty].join("|");
 }
 
 export const quizService = {
   async generateQuiz(config: QuizConfig): Promise<Quiz> {
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
-      throw new Error("User not authenticated");
-    }
-
     const response = await fetch(`${API_URL}/quiz/generate`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: authHeaders(),
       body: JSON.stringify({
         topic: config.topic,
         questionCount: config.questionCount,
         difficulty: config.difficulty,
+        timeLimit: config.timeLimit,
       }),
     });
 
     if (!response.ok) {
-      const data = (await response.json().catch(() => null)) as {
-        code?: string;
-        message?: string;
-      } | null;
-      if (response.status === 503 && data?.code === "GEMINI_NOT_CONFIGURED") {
-        return this.generateMockQuiz(config);
-      }
-      throw new Error(data?.message || "Gemini could not generate this quiz");
+      throw new Error(await readError(response, "Gemini could not generate this quiz"));
     }
 
-    const quizData = (await response.json()) as { questions: Question[] };
-    return {
-      id: Date.now().toString(),
-      topic: config.topic,
-      questions: quizData.questions,
-      timeLimit: config.timeLimit,
-      createdAt: new Date().toISOString(),
-    };
-  },
-
-  async generateMockQuiz(config: QuizConfig): Promise<Quiz> {
-    // Enhanced mock data with topic-specific questions
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const topicQuestions = this.getTopicSpecificQuestions(
-      config.topic,
-      config.questionCount
-    );
-
-    return {
-      id: Date.now().toString(),
-      topic: config.topic,
-      questions: topicQuestions,
-      timeLimit: config.timeLimit,
-      createdAt: new Date().toISOString(),
-    };
-  },
-
-  getTopicSpecificQuestions(topic: string, count: number): Question[] {
-    const questionBank: Record<string, Question[]> = {
-      "Operating Systems": [
-        {
-          id: "os1",
-          question: "What is the main purpose of an operating system?",
-          options: [
-            "Compile programs",
-            "Manage hardware resources",
-            "Create databases",
-            "Design user interfaces",
-          ],
-          correctAnswer: 1,
-          explanation:
-            "The primary purpose of an OS is to manage hardware resources and provide services to applications.",
-        },
-        {
-          id: "os2",
-          question:
-            "Which scheduling algorithm gives priority to the process with the shortest execution time?",
-          options: ["FCFS", "SJF", "Round Robin", "Priority Scheduling"],
-          correctAnswer: 1,
-          explanation:
-            "Shortest Job First (SJF) algorithm prioritizes processes with the shortest execution time.",
-        },
-        {
-          id: "os3",
-          question: "What is a deadlock in operating systems?",
-          options: [
-            "A crashed program",
-            "A circular wait condition",
-            "A memory leak",
-            "A network error",
-          ],
-          correctAnswer: 1,
-          explanation:
-            "Deadlock occurs when processes are waiting for each other in a circular chain.",
-        },
-      ],
-      "Data Structures": [
-        {
-          id: "ds1",
-          question:
-            "What is the time complexity of searching in a balanced binary search tree?",
-          options: ["O(1)", "O(log n)", "O(n)", "O(n²)"],
-          correctAnswer: 1,
-          explanation:
-            "In a balanced BST, search operations take O(log n) time due to the tree height.",
-        },
-        {
-          id: "ds2",
-          question: "Which data structure follows LIFO principle?",
-          options: ["Queue", "Stack", "Array", "Linked List"],
-          correctAnswer: 1,
-          explanation:
-            "Stack follows Last In First Out (LIFO) principle where the last element added is the first to be removed.",
-        },
-      ],
-      "Database Management Systems": [
-        {
-          id: "dbms1",
-          question: "What does ACID stand for in database transactions?",
-          options: [
-            "Atomicity, Consistency, Isolation, Durability",
-            "Access, Control, Integration, Data",
-            "Automatic, Concurrent, Independent, Distributed",
-            "Authentication, Compression, Indexing, Distribution",
-          ],
-          correctAnswer: 0,
-          explanation:
-            "ACID represents the four key properties that guarantee reliable database transactions.",
-        },
-      ],
-      "Computer Networks": [
-        {
-          id: "cn1",
-          question: "Which layer of the OSI model is responsible for routing?",
-          options: [
-            "Physical Layer",
-            "Data Link Layer",
-            "Network Layer",
-            "Transport Layer",
-          ],
-          correctAnswer: 2,
-          explanation:
-            "The Network Layer (Layer 3) handles routing and logical addressing.",
-        },
-      ],
-      "Object-Oriented Programming": [
-        {
-          id: "oop1",
-          question: "What is encapsulation in OOP?",
-          options: [
-            "Creating multiple objects",
-            "Hiding internal implementation details",
-            "Inheriting from parent class",
-            "Overriding methods",
-          ],
-          correctAnswer: 1,
-          explanation:
-            "Encapsulation is the bundling of data and methods while hiding internal implementation details.",
-        },
-      ],
-    };
-
-    const questions = questionBank[topic] || [];
-
-    // If we have enough questions for the topic, return them
-    if (questions.length >= count) {
-      return questions.slice(0, count);
-    }
-
-    // Otherwise, generate generic questions
-    return Array.from({ length: count }, (_, i) => ({
-      id: `q${i + 1}`,
-      question: `Sample question ${i + 1} about ${topic}?`,
-      options: ["Option A", "Option B", "Option C", "Option D"],
-      correctAnswer: Math.floor(Math.random() * 4),
-      explanation: `This is the explanation for question ${
-        i + 1
-      } about ${topic}.`,
-    }));
-  },
-
-  async uploadPDFQuiz(file: File): Promise<Quiz> {
-    // Mock PDF processing - replace with actual PDF parsing API
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    const mockQuestions: Question[] = Array.from({ length: 10 }, (_, i) => ({
-      id: `pdf_q${i + 1}`,
-      question: `PDF-based question ${i + 1} extracted from ${file.name}?`,
-      options: ["PDF Option A", "PDF Option B", "PDF Option C", "PDF Option D"],
-      correctAnswer: Math.floor(Math.random() * 4),
-      explanation: `Explanation extracted from PDF content for question ${
-        i + 1
-      }.`,
-    }));
-
-    return {
-      id: Date.now().toString(),
-      topic: `PDF: ${file.name}`,
-      questions: mockQuestions,
-      timeLimit: 30,
-      createdAt: new Date().toISOString(),
-    };
-  },
-
-  async getQuizTopics(): Promise<string[]> {
-    return [
-      // Core Computer Science
-      "Operating Systems",
-      "Data Structures",
-      "Algorithms",
-      "Database Management Systems",
-      "Computer Networks",
-      "Object-Oriented Programming",
-      "Software Engineering",
-      "Computer Architecture",
-
-      // Programming Languages
-      "Java Programming",
-      "Python Programming",
-      "C++ Programming",
-      "JavaScript",
-      "React.js",
-      "Node.js",
-
-      // Advanced Topics
-      "Machine Learning",
-      "Artificial Intelligence",
-      "Cybersecurity",
-      "Cloud Computing",
-      "DevOps",
-      "System Design",
-
-      // Mathematics & Theory
-      "Discrete Mathematics",
-      "Theory of Computation",
-      "Compiler Design",
-      "Digital Logic Design",
-
-      // General Knowledge
-      "General Knowledge",
-      "Current Affairs",
-      "Science",
-      "History",
-    ];
+    return response.json() as Promise<Quiz>;
   },
 
   async createGeneratedQuiz(config: QuizConfig): Promise<Quiz> {
@@ -282,14 +48,7 @@ export const quizService = {
     const current = generatedQuizLoads.get(key);
     if (current) return current;
 
-    const load = (async () => {
-      const generated = await this.generateQuiz(config);
-      return this.saveQuizToBackend({
-        topic: generated.topic,
-        questions: generated.questions,
-        timeLimit: generated.timeLimit,
-      });
-    })().finally(() => {
+    const load = this.generateQuiz(config).finally(() => {
       queueMicrotask(() => {
         if (generatedQuizLoads.get(key) === load) {
           generatedQuizLoads.delete(key);
@@ -301,122 +60,137 @@ export const quizService = {
     return load;
   },
 
-  // Save quiz to backend
-  async saveQuizToBackend(quizData: {
-    topic: string;
-    questions: Question[];
-    timeLimit: number;
-  }): Promise<Quiz> {
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
-      throw new Error("User not authenticated");
-    }
-
-    const response = await fetch(`${API_URL}/quiz`, {
+  async submitQuiz(
+    quizId: string,
+    payload: { answers: number[]; timeTaken: number; submissionId: string }
+  ): Promise<SubmissionResult> {
+    const response = await fetch(`${API_URL}/quiz/${quizId}/submit`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(quizData),
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to save quiz to backend");
+      throw new Error(await readError(response, "Failed to submit quiz"));
     }
 
-    const savedQuiz = await response.json();
-    return {
-      id: savedQuiz._id, // Use MongoDB _id as id
-      topic: savedQuiz.topic,
-      questions: savedQuiz.questions,
-      timeLimit: savedQuiz.timeLimit,
-      createdAt: savedQuiz.createdAt,
-    };
+    return response.json() as Promise<SubmissionResult>;
   },
 
-  // New methods for quiz attempts and user statistics
-  async saveQuizAttempt(attemptData: {
-    quizId: string;
-    topic: string;
-    answers: number[];
-    score: number;
-    totalQuestions: number;
-    timeTaken: number;
-    difficulty: "easy" | "medium" | "hard";
-  }): Promise<QuizAttempt> {
-    const key = attemptSaveKey(attemptData);
-    const current = attemptSaves.get(key);
-    if (current) return current;
-
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
-      throw new Error("User not authenticated");
-    }
-
-    const save = (async () => {
-      const response = await fetch(`${API_URL}/quiz/attempt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(attemptData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to save quiz attempt");
-      }
-
-      return response.json() as Promise<QuizAttempt>;
-    })().catch((error: unknown) => {
-      attemptSaves.delete(key);
-      throw error;
-    });
-
-    attemptSaves.set(key, save);
-    return save;
+  async getQuizTopics(): Promise<string[]> {
+    return [
+      "Operating Systems",
+      "Data Structures",
+      "Algorithms",
+      "Database Management Systems",
+      "Computer Networks",
+      "Object-Oriented Programming",
+      "Software Engineering",
+      "Computer Architecture",
+      "Java Programming",
+      "Python Programming",
+      "C++ Programming",
+      "JavaScript",
+      "React.js",
+      "Node.js",
+      "Machine Learning",
+      "Artificial Intelligence",
+      "Cybersecurity",
+      "Cloud Computing",
+      "DevOps",
+      "System Design",
+      "Discrete Mathematics",
+      "Theory of Computation",
+      "Compiler Design",
+      "Digital Logic Design",
+      "General Knowledge",
+      "Current Affairs",
+      "Science",
+      "History",
+    ];
   },
 
   async getUserQuizAttempts(): Promise<QuizAttempt[]> {
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
-      throw new Error("User not authenticated");
-    }
-
     const response = await fetch(`${API_URL}/quiz/attempts`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: authHeaders(),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to fetch quiz attempts");
+      throw new Error(await readError(response, "Failed to fetch quiz attempts"));
     }
 
     return response.json();
   },
 
   async getUserStats(): Promise<UserStats> {
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
-      throw new Error("User not authenticated");
-    }
-
     const response = await fetch(`${API_URL}/quiz/stats`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: authHeaders(),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to fetch user statistics");
+      throw new Error(await readError(response, "Failed to fetch user statistics"));
     }
 
+    return response.json();
+  },
+
+  async listCertificates(): Promise<Certificate[]> {
+    const response = await fetch(`${API_URL}/quiz/certificates`, { headers: authHeaders() });
+    if (!response.ok) {
+      throw new Error(await readError(response, "Failed to load certificates"));
+    }
+    return response.json();
+  },
+
+  async getCertificate(certificateId: string): Promise<Certificate> {
+    const response = await fetch(`${API_URL}/quiz/certificates/${certificateId}`, { headers: authHeaders() });
+    if (!response.ok) {
+      throw new Error(await readError(response, "Certificate not found"));
+    }
+    return response.json();
+  },
+
+  async listQuizzes(): Promise<Array<Pick<Quiz, "id" | "topic" | "timeLimit" | "createdAt"> & { questionCount: number; difficulty: QuizConfig["difficulty"]; source?: string }>> {
+    const response = await fetch(`${API_URL}/quiz`, { headers: authHeaders() });
+    if (!response.ok) {
+      throw new Error(await readError(response, "Failed to load your quizzes"));
+    }
+    return response.json();
+  },
+
+  async getQuiz(quizId: string): Promise<Quiz> {
+    const response = await fetch(`${API_URL}/quiz/${quizId}`, { headers: authHeaders() });
+    if (!response.ok) {
+      throw new Error(await readError(response, "Failed to open that quiz"));
+    }
+    return response.json();
+  },
+
+  async uploadStudyMaterial(file: File): Promise<{ id: string; filename: string; preview: string; charCount: number; pageCount: number; kind: string }> {
+    const token = localStorage.getItem("auth_token");
+    if (!token) throw new Error("User not authenticated");
+    const body = new FormData();
+    body.append("file", file);
+    const response = await fetch(`${API_URL}/materials`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(await readError(response, "Could not read that document"));
+    }
+    return response.json();
+  },
+
+  async generateQuizFromMaterial(materialId: string, config: Pick<QuizConfig, "questionCount" | "difficulty" | "timeLimit">): Promise<Quiz> {
+    const response = await fetch(`${API_URL}/materials/${materialId}/quiz`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(config),
+    });
+    if (!response.ok) {
+      throw new Error(await readError(response, "Could not generate a quiz from this document"));
+    }
     return response.json();
   },
 };
